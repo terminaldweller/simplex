@@ -53,7 +53,9 @@ class Equation:
     vars_mults: typing.TypedDict("VarMult", {"var": str, "mult": float})
     op: str
     rhs: float
+    # postfix
     q: list
+    qq: list
 
     def autofill_one_mults(self):
         for k, v in self.vars_mults:
@@ -65,16 +67,13 @@ class Equation:
             print(k, v)
 
 
-def walk_expr(node: typing.Any) -> (typing.Any, Equation):
+def walk_expr(
+    node: typing.Any, equ: Equation, debug: bool
+) -> (typing.Any, Equation):
     """walks over a python expression and extracts the
     operand,identifiers and literals"""
     if node is None:
-        return None
-
-    vars_mults = dict()
-    op = str()
-    rhs = 0.0
-    q = list()
+        return None, equ
 
     if isinstance(node, ast.Expr):
         ast_node = node.value
@@ -83,52 +82,75 @@ def walk_expr(node: typing.Any) -> (typing.Any, Equation):
 
     match type(ast_node):
         case ast.BinOp:
-            walk_expr(ast_node.left)
-            walk_expr(ast_node.right)
+            walk_expr(ast_node.left, equ, debug)
+            walk_expr(ast_node.right, equ, debug)
             if isinstance(ast_node.op, ast.Mult):
-                print("*")
-                q.append("*")
+                if debug:
+                    print("*")
+                equ.q.append("*")
+                equ.qq.append(ast_node.op)
             elif isinstance(ast_node.op, ast.Sub):
-                print("-")
-                q.append("-")
+                if debug:
+                    print("-")
+                equ.q.append("-")
+                equ.qq.append(ast_node.op)
             elif isinstance(ast_node.op, ast.Add):
-                print("+")
-                q.append("+")
+                if debug:
+                    print("+")
+                equ.q.append("+")
+                equ.qq.append(ast_node.op)
         case ast.Compare:
             if isinstance(ast_node.ops[0], ast.LtE):
-                print("<=", ast_node.comparators[0].value)
-                op = ast_node.comparators[0].value
+                if debug:
+                    print("<=", ast_node.comparators[0].value)
+                equ.rhs = float(ast_node.comparators[0].value)
+                equ.op = "<="
             elif isinstance(ast_node.ops[0], ast.GtE):
-                print(">=", ast_node.comparators[0].value)
-                rhs = float(ast_node.comparators[0].value)
+                if debug:
+                    print(">=", ast_node.comparators[0].value)
+                equ.rhs = float(ast_node.comparators[0].value)
+                equ.op = ">="
             elif isinstance(ast_node[0], ast.Gt):
-                print(">", ast_node.comparators[0].value)
-                rhs = float(ast_node.comparators[0].value)
+                if debug:
+                    print(">", ast_node.comparators[0].value)
+                equ.rhs = float(ast_node.comparators[0].value)
+                equ.op = ">"
             elif isinstance(ast_node[0], ast.Lt):
-                print("<", ast_node.comparators[0].value)
-                rhs = float(ast_node.comparators[0].value)
+                if debug:
+                    print("<", ast_node.comparators[0].value)
+                equ.rhs = float(ast_node.comparators[0].value)
+                equ.op = "<"
             elif isinstance(ast_node[0], ast.Eq):
-                print("=", ast_node.comparators[0].value)
-                rhs = float(ast_node.comparators[0].value)
+                if debug:
+                    print("=", ast_node.comparators[0].value)
+                equ.rhs = float(ast_node.comparators[0].value)
+                equ.op = "="
             else:
                 logging.fatal(
                     "encountered unexpected Compare node, {}, in ast".format(
                         type(ast_node.comparators[0])
                     )
                 )
-            walk_expr(ast_node.left)
+            walk_expr(ast_node.left, equ, debug)
         case ast.Name:
-            print(ast_node.id)
-            q.append(ast_node.id)
+            if debug:
+                print(ast_node.id)
+            equ.q.append(ast_node.id)
+            equ.qq.append(ast_node)
         case ast.Constant:
-            print(ast_node.value)
+            if debug:
+                print(ast_node.value)
+            equ.q.append(ast_node.value)
+            equ.qq.append(ast_node)
         case ast.Expr:
-            walk_expr(ast_node.value)
+            walk_expr(ast_node.value, equ, debug)
         case ast.UnaryOp:
             if isinstance(ast_node, ast.UnaryOp):
-                print("-", ast_node.operand.id)
-                q.append("-")
-                q.append(ast_node.operand.id)
+                if debug:
+                    print("-", ast_node.operand.id)
+                equ.q.append("-")
+                equ.q.append(ast_node.operand.id)
+                equ.qq.append(ast_node)
         case _:
             logging.fatal(
                 "encountered unexpected node,{} , in ast".format(
@@ -136,12 +158,12 @@ def walk_expr(node: typing.Any) -> (typing.Any, Equation):
                 )
             )
 
-    equ = Equation(vars_mults, op, rhs, q)
-    return equ
+    return None, equ
 
 
 def parse_equations(equ_file: str, debug: bool):
     """parses the equations as pyithon expressions"""
+    equs = []
     with open(equ_file, encoding="utf-8") as equ_expr:
         equs_unparsed = equ_expr.readlines()
         for equ in equs_unparsed:
@@ -149,11 +171,22 @@ def parse_equations(equ_file: str, debug: bool):
             if debug:
                 print(type(equ_parsed.body[0]))
                 print(ast.dump(equ_parsed.body[0], indent=4))
-            res = walk_expr(equ_parsed.body[0])
-            print("vars_mults:", res.vars_mults)
-            print("op: ", res.op)
-            print("rhs: ", res.rhs)
-            print()
+            equ = Equation([], "", "", [], [])
+            _, res = walk_expr(equ_parsed.body[0], equ, debug)
+            # print("vars_mults:", res.vars_mults)
+            # print("op: ", res.op)
+            # print("rhs: ", res.rhs)
+            # print("q: ", res.q)
+            # print()
+            equs.append(res)
+
+    for equ in equs:
+        print("vars_mults:", equ.vars_mults)
+        print("op: ", equ.op)
+        print("rhs: ", equ.rhs)
+        print("q: ", equ.q)
+        print("qq: ", equ.qq)
+        print()
 
 
 def main() -> None:
