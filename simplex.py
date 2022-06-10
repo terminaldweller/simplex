@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# ./simplex.py -e ./equ.txt -v -s s -m
 """python simplex implementation"""
 
 import argparse
@@ -193,7 +194,7 @@ def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
     return equs
 
 
-def buildA(
+def build_A(
     equs: typing.List[Equation], verbose: bool, slack: str
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """build the A matrix, adding the slack variable along the way"""
@@ -263,7 +264,6 @@ def buildA(
         var_names.append(key)
     var_names.sort()
 
-    # [print(var) for var in var_names]
     A: np.ndarray = np.ndarray((m, n))
     b: np.ndarray = np.ndarray((m, 1))
     for i in range(0, m):
@@ -284,11 +284,59 @@ def buildA(
     return A, b
 
 
+@nb.jit(nopython=True)
+def find_identity(
+    A: np.ndarray,
+) -> typing.Tuple[bool, typing.Optional[typing.Dict[int, int]]]:
+    """Tries to find one m*m identity matrix
+    inside A, returns one that it finds"""
+    ones_count: int = 0
+    last_one_row: int = -1
+    ones: int = 0
+    cancelled: bool = False
+    m: int = A.shape[0]
+    n: int = A.shape[1]
+    col_list: typing.Dict[int, int] = dict()
+
+    for j in range(0, n):
+        for i in range(0, m):
+            if A[i][j] != 1 and A[i][j] != 0:
+                cancelled = True
+                continue
+            elif A[i][j] == 1:
+                ones_count += 1
+                last_one_row = i + 1
+        if cancelled:
+            cancelled = False
+            continue
+        if ones_count == 1:
+            ones += last_one_row
+            col_list[last_one_row] = j
+        ones_count = 0
+
+    if ones == (m * (m + 1)) / 2:
+        return True, col_list
+    else:
+        return False, None
+
+
+def find_basis(A, b: np.ndarray) -> np.ndarray:
+    m: int = A.shape[0]
+    B: np.ndarray = np.ndarray((m, m))
+
+    has_identity, col_list = find_identity(A)
+    if has_identity:
+        print(col_list)
+
+    return B
+
+
 def main() -> None:
     """the entry point for the module"""
     argparser = Argparser()
     equs = parse_equations(argparser.args.equs, argparser.args.debug)
-    A, b = buildA(equs, argparser.args.verbose, argparser.args.slack)
+    A, b = build_A(equs, argparser.args.verbose, argparser.args.slack)
+    B = find_basis(A, b)
 
 
 if __name__ == "__main__":
