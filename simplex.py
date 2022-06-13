@@ -54,19 +54,40 @@ class Argparser:  # pylint: disable=too-few-public-methods
             help="whether to print debug info",
             default=False,
         )
+        parser.add_argument(
+            "--numba",
+            "-n",
+            action="store_true",
+            help="whether to print debug info",
+            default=False,
+        )
         self.args = parser.parse_args()
 
 
 @dataclasses.dataclass
 class Equation:
+    """Equation class. holds the variables, the operand and binding value."""
+
     vars_mults: typing.Dict
     op: str
     rhs: float
 
 
 @typing.no_type_check
+def get_parent_node(
+    node: typing.Any, root: typing.Any
+) -> typing.Optional[typing.Any]:
+    """Get the parent of a node in the python AST. very inefficient."""
+    for subnode in ast.walk(root):
+        for child in ast.iter_child_nodes(subnode):
+            if child == node:
+                return subnode
+    return None
+
+
+@typing.no_type_check
 def expr_visitor(
-    node: typing.Any, equ: Equation, debug: bool
+    root: typing.Any, node: typing.Any, equ: Equation, debug: bool
 ) -> typing.Tuple[typing.Any, Equation]:
     """walks over a python expression and extracts the
     operands, identifiers and literals"""
@@ -84,7 +105,10 @@ def expr_visitor(
                 if debug:
                     print("*")
                 if ast_node.right.id not in equ.vars_mults:
-                    equ.vars_mults[ast_node.right.id] = ast_node.left.value
+                    if isinstance(ast_node.left, ast.UnaryOp):
+                        expr_visitor(root, ast_node.left, equ, debug)
+                    else:
+                        equ.vars_mults[ast_node.right.id] = ast_node.left.value
             elif isinstance(ast_node.op, ast.Sub):
                 if debug:
                     print("-")
@@ -100,8 +124,8 @@ def expr_visitor(
             elif isinstance(ast_node.op, ast.Add):
                 if debug:
                     print("+")
-            expr_visitor(ast_node.left, equ, debug)
-            expr_visitor(ast_node.right, equ, debug)
+            expr_visitor(root, ast_node.left, equ, debug)
+            expr_visitor(root, ast_node.right, equ, debug)
         case ast.Compare:
             if isinstance(ast_node.ops[0], ast.LtE):
                 if debug:
@@ -135,7 +159,7 @@ def expr_visitor(
                     )
                 )
                 sys.exit(1)
-            expr_visitor(ast_node.left, equ, debug)
+            expr_visitor(root, ast_node.left, equ, debug)
         case ast.Name:
             if debug:
                 print(ast_node.id)
@@ -146,13 +170,20 @@ def expr_visitor(
             if debug:
                 print(ast_node.value)
         case ast.Expr:
-            expr_visitor(ast_node.value, equ, debug)
+            expr_visitor(root, ast_node.value, equ, debug)
         case ast.UnaryOp:
             if isinstance(ast_node.op, ast.USub):
-                if debug:
-                    print("-", ast_node.operand.id)
-                if ast_node.operand.id not in equ.vars_mults:
-                    equ.vars_mults[ast_node.operand.id] = -1
+                if isinstance(ast_node.operand, ast.Constant):
+                    parent_node = get_parent_node(ast_node, root)
+                    if parent_node is not None:
+                        equ.vars_mults[parent_node.right.id] = (
+                            -1 * ast_node.operand.value
+                        )
+                else:
+                    if debug:
+                        print("-", ast_node.operand.id)
+                    if ast_node.operand.id not in equ.vars_mults:
+                        equ.vars_mults[ast_node.operand.id] = -1
             elif isinstance(ast_node.op, ast.UAdd):
                 # Unary add operands are meaningless
                 pass
@@ -185,7 +216,9 @@ def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
                 print(type(equ_parsed.body[0]))
                 print(ast.dump(equ_parsed.body[0], indent=4))
             equ = Equation(dict(), "", 0.0)
-            _, res = expr_visitor(equ_parsed.body[0], equ, debug)
+            _, res = expr_visitor(
+                equ_parsed.body[0], equ_parsed.body[0], equ, debug
+            )
             equs.append(res)
 
     if debug:
@@ -196,7 +229,10 @@ def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
 
 def build_A(
     equs: typing.List[Equation], verbose: bool, slack: str
-) -> typing.Tuple[np.ndarray, np.ndarray]:
+) -> typing.Tuple[
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+]:
     """build the A matrix, adding the slack variable along the way"""
     var_list = dict()
     slack_counter: int = 1
@@ -264,8 +300,8 @@ def build_A(
         var_names.append(key)
     var_names.sort()
 
-    A: np.ndarray = np.ndarray((m, n))
-    b: np.ndarray = np.ndarray((m, 1))
+    A: np.ndarray = np.ndarray((m, n), dtype=np.float32)
+    b: np.ndarray = np.ndarray((m, 1), dtype=np.float32)
     for i in range(0, m):
         for j in range(0, n):
             if var_names[j] in equs[i].vars_mults:
@@ -284,9 +320,9 @@ def build_A(
     return A, b
 
 
-@nb.jit(nopython=True)
+@nb.jit(nopython=True, cache=True)
 def find_identity(
-    A: np.ndarray,
+    A: np.ndarray[typing.Any, np.dtype[np.float32]],
 ) -> typing.Tuple[bool, typing.Optional[typing.Dict[int, int]]]:
     """Tries to find one m*m identity matrix
     inside A, returns one that it finds"""
@@ -320,13 +356,16 @@ def find_identity(
         return False, None
 
 
-def find_basis(A, b: np.ndarray) -> np.ndarray:
+def find_basis(
+    A, b: np.ndarray[typing.Any, np.dtype[np.float32]]
+) -> np.ndarray[typing.Any, np.dtype[np.float32]]:
     m: int = A.shape[0]
-    B: np.ndarray = np.ndarray((m, m))
+    B: np.ndarray = np.ndarray((m, m), dtype=np.float32)
 
     has_identity, col_list = find_identity(A)
     if has_identity:
         print(col_list)
+        return B
 
     return B
 
