@@ -433,6 +433,8 @@ def calculate_objective(
 ) -> typing.Tuple[
     np.ndarray[typing.Any, np.dtype[np.float32]],
     np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
 ]:
     """Calculate C_b*B^-1*b."""
     m: int = len(basic_var_column_list)
@@ -461,7 +463,7 @@ def calculate_objective(
     if verbose:
         print("zj_cj:\n", objectives)
 
-    return B_inv, objectives
+    return B_inv, objectives, w, C_b
 
 
 def get_non_negative_min(
@@ -528,16 +530,35 @@ def get_k(
     n = M.shape[1]
     maximum: float = -1e9
     maximum_index: int = -1
-    # print("k basis_col_list:\n", basis_col_list)
-    # print("k objectives:\n", M)
     for i in range(0, n):
         if i not in basis_col_list:
-            # print("k M[0,i]:\n", M[0, i])
             if M[0, i] > maximum:
                 maximum = M[0, i]
                 maximum_index = i
 
     return maximum_index, maximum
+
+
+def calculate_optimal(
+    b: np.ndarray[typing.Any, np.dtype[np.float32]],
+    B_inv: np.ndarray[typing.Any, np.dtype[np.float32]],
+    C_b: np.ndarray[typing.Any, np.dtype[np.float32]],
+    basis_col_list: typing.List[int],
+) -> float:
+    """Calculates the optimal value.
+    B * x_b = b
+    Z  = C_b * x_b
+    """
+    optim: float = 0.0
+
+    x_b = np.dot(B_inv, b)
+    print("x_b:\n", x_b)
+    Z = np.dot(C_b, x_b)
+    print("Z:\n", Z)
+
+    optim = Z[0, 0]
+
+    return optim
 
 
 def solve_normal_simplex(
@@ -553,19 +574,21 @@ def solve_normal_simplex(
     round_count: int = 0
     while True:
         round_count += 1
-        B_inv, objectives = calculate_objective(
+        B_inv, objectives, w, C_b = calculate_objective(
             basis_col_list, A, B, C, basis_is_identity, verbose
         )
-        # k_index = np.where(objectives == np.max(objectives))
         k, _ = get_k(objectives, basis_col_list)
-        # k = k_index[-1][-1]
         if verbose:
             print("k: ", k)
         max_zj_cj = objectives[0, k]
         if argparser.args.min:
             if max_zj_cj < 0:
                 # we are done
-                print("optimal min is:", np.sum(objectives))
+                # print("optimal min is:", np.sum(objectives))
+                print(
+                    "optimal min is:",
+                    calculate_optimal(b, B_inv, C_b, basis_col_list),
+                )
                 break
         else:
             if max_zj_cj > 0:
