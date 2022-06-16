@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# ./simplex.py -e ./equ.txt -v -s s -m
+# ./simplex.py -e ./equ4.txt -v -s z -m
 """python simplex implementation"""
 
 import argparse
@@ -33,6 +33,13 @@ class Argparser:  # pylint: disable=too-few-public-methods
             default="xx",
         )
         parser.add_argument(
+            "--iter",
+            "-i",
+            type=int,
+            help="maximum number of iterations",
+            default=10,
+        )
+        parser.add_argument(
             "--min",
             "-m",
             action="store_true",
@@ -54,6 +61,7 @@ class Argparser:  # pylint: disable=too-few-public-methods
             help="whether to print debug info",
             default=False,
         )
+        # TODO- not being used right now
         parser.add_argument(
             "--numba",
             "-n",
@@ -383,6 +391,7 @@ def find_identity(
     return False, None
 
 
+# TODO- we cant find a basis if we dont have identity
 def find_basis(
     A, b: np.ndarray[typing.Any, np.dtype[np.float32]]
 ) -> typing.Tuple[
@@ -455,8 +464,6 @@ def calculate_objective(
         print("C_b:\n", C_b)
 
     w = np.dot(C_b, B_inv)
-    if verbose:
-        print("w:\n", w)
     # for j in range(0, A.shape[1]):
     #     print("zj_cj:", np.matmul(w, A[:, j : j + 1]) - C[0, j])
     objectives = get_costs(w, A, C)
@@ -480,10 +487,6 @@ def get_non_negative_min(
             if M[i, 0] < minimum:
                 minimum = M[i, 0]
                 minimum_index = i
-
-    # TODO
-    # now we have the index of the leaving var in the basis
-    # we need to change this to the index of the leaving var
 
     return minimum, minimum_index
 
@@ -544,6 +547,7 @@ def calculate_optimal(
     B_inv: np.ndarray[typing.Any, np.dtype[np.float32]],
     C_b: np.ndarray[typing.Any, np.dtype[np.float32]],
     basis_col_list: typing.List[int],
+    var_sorted_list: typing.List[str],
 ) -> float:
     """Calculates the optimal value.
     B * x_b = b
@@ -553,6 +557,9 @@ def calculate_optimal(
 
     x_b = np.dot(B_inv, b)
     print("x_b:\n", x_b)
+    print("optimal solution point:")
+    for basis in basis_col_list:
+        print(var_sorted_list[basis])
     Z = np.dot(C_b, x_b)
     print("Z:\n", Z)
 
@@ -577,6 +584,8 @@ def solve_normal_simplex(
         B_inv, objectives, w, C_b = calculate_objective(
             basis_col_list, A, B, C, basis_is_identity, verbose
         )
+        if verbose:
+            print("w:\n", w)
         k, _ = get_k(objectives, basis_col_list)
         if verbose:
             print("k: ", k)
@@ -587,7 +596,9 @@ def solve_normal_simplex(
                 # print("optimal min is:", np.sum(objectives))
                 print(
                     "optimal min is:",
-                    calculate_optimal(b, B_inv, C_b, basis_col_list),
+                    calculate_optimal(
+                        b, B_inv, C_b, basis_col_list, var_sorted_list
+                    ),
                 )
                 break
         else:
@@ -608,18 +619,18 @@ def solve_normal_simplex(
         )
         basis_is_identity = False
 
-        print("basis_col_list 1: ", basis_col_list)
+        # print("basis_col_list 1: ", basis_col_list)
         leaving_col: int = 0
         for i, basis in enumerate(basis_col_list):
             if basis == r:
                 leaving_col = i
         basis_col_list[leaving_col] = k
-        print("basis_col_list 2: ", basis_col_list)
+        # print("basis_col_list 2: ", basis_col_list)
 
         if verbose:
             print("B:\n", B)
         print("-------------------------------------------------")
-        if round_count > 10:
+        if round_count > argparser.args.iter:
             print("too many iterations.")
             break
 
