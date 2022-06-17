@@ -321,9 +321,9 @@ def build_abc(
         var_names.append(key)
     var_names.sort()
 
-    A: np.ndarray = np.ndarray((m, n), dtype=np.float32)
-    b: np.ndarray = np.ndarray((m, 1), dtype=np.float32)
-    C: np.ndarray = np.ndarray((1, n), dtype=np.float32)
+    A: np.ndarray = np.zeros((m, n), dtype=np.float32)
+    b: np.ndarray = np.zeros((m, 1), dtype=np.float32)
+    C: np.ndarray = np.zeros((1, n), dtype=np.float32)
     # build A
     for i in range(0, m):
         for j in range(0, n):
@@ -339,23 +339,32 @@ def build_abc(
     # Add the slack variables to the cost function
     for i in range(1, slack_counter):
         equ_b[0].vars_mults[slack + repr(i)] = 0
+
+    # build the list of the variables sorted lexicographically
+    for _, v in enumerate(iter(sorted(var_list))):
+        var_sorted_list.append(v)
+    if verbose:
+        print("var_list: ", var_sorted_list)
+
     # build C
     for i, (_, v) in enumerate(iter(sorted(equ_b[0].vars_mults.items()))):
-        C[0, i] = v
+        print("XXX:", i, _, v)
+        index: int = [
+            j
+            for j in range(0, len(var_sorted_list))
+            if var_sorted_list[j] == _
+        ]
+        C[0, index] = v
 
     if verbose:
         print("A:\n", A)
         print("b:\n", b)
         print("C:\n", C)
 
-    for _, v in enumerate(iter(sorted(var_list))):
-        var_sorted_list.append(v)
-    if verbose:
-        print("var_list: ", var_sorted_list)
     return A, b, C, var_sorted_list
 
 
-@nb.jit(nopython=True, cache=True)
+# @nb.jit(nopython=True, cache=True)
 def find_identity(
     A: np.ndarray[typing.Any, np.dtype[np.float32]],
 ) -> typing.Tuple[bool, typing.Optional[typing.Dict[int, int]]]:
@@ -416,13 +425,13 @@ def find_basis(
     return False, B, col_list_list
 
 
-@nb.jit(nopython=True, cache=True)
+# @nb.jit(nopython=True, cache=True)
 def invert_matrix(M: np.ndarray) -> np.ndarray:
     """inverts a square matrix"""
     return np.linalg.inv(M)
 
 
-@nb.jit(nopython=True, cache=True, parallel=True)
+# @nb.jit(nopython=True, cache=True, parallel=True)
 def get_costs(w, A, C: np.ndarray) -> np.ndarray:
     """calculates Z_j - C_j"""
     return np.dot(w, A) - C
