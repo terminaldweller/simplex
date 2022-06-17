@@ -8,7 +8,8 @@ import dataclasses
 import logging
 import sys
 import typing
-import numba as nb  # type:ignore
+
+# import numba as nb  # type:ignore
 import numpy as np
 
 
@@ -225,14 +226,17 @@ def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
         equs_unparsed = equ_expr.readlines()
         for equ_unparsed in equs_unparsed:
             equ_parsed = ast.parse(equ_unparsed)
-            if debug:
-                print(type(equ_parsed.body[0]))
-                print(ast.dump(equ_parsed.body[0], indent=4))
-            equ = Equation({}, "", 0.0)
-            _, res = expr_visitor(
-                equ_parsed.body[0], equ_parsed.body[0], equ, debug
-            )
-            equs.append(res)
+            # we check to make sure we are not visiting comments which have
+            # an empty AST since we are parsing line by line
+            if len(equ_parsed.body) > 0:
+                if debug:
+                    print(type(equ_parsed.body[0]))
+                    print(ast.dump(equ_parsed.body[0], indent=4))
+                equ = Equation({}, "", 0.0)
+                _, res = expr_visitor(
+                    equ_parsed.body[0], equ_parsed.body[0], equ, debug
+                )
+                equs.append(res)
 
     if debug:
         for equ in equs:
@@ -349,12 +353,12 @@ def build_abc(
     # build C
     for i, (_, v) in enumerate(iter(sorted(equ_b[0].vars_mults.items()))):
         print("XXX:", i, _, v)
-        index: int = [
+        index: typing.List[int] = [
             j
             for j in range(0, len(var_sorted_list))
             if var_sorted_list[j] == _
         ]
-        C[0, index] = v
+        C[0, index[0]] = v
 
     if verbose:
         print("A:\n", A)
@@ -401,7 +405,7 @@ def find_identity(
     return False, None
 
 
-# TODO- we cant find a basis if we dont have identity
+# TODO- implement two phase
 def find_basis(
     A, b: np.ndarray[typing.Any, np.dtype[np.float32]]
 ) -> typing.Tuple[
@@ -412,11 +416,12 @@ def find_basis(
     B: np.ndarray = np.zeros((m, m), dtype=np.float32)
 
     has_identity, col_list = find_identity(A)
-    print("col_list:", col_list)
-    col_list_list: typing.List[int] = []
-    for _, v in col_list.items():
-        col_list_list.append(v)
-    if has_identity:
+    if has_identity and col_list is not None:
+        print("col_list:", col_list)
+        col_list_list: typing.List[int] = []
+        for _, v in col_list.items():
+            col_list_list.append(v)
+
         B = np.identity(m, dtype=np.float32)
         return has_identity, B, col_list_list
     # two phase
@@ -531,7 +536,6 @@ def get_leaving_var_lexi(
     minimum = 1e9
     minimum_index = 0
     minimum_count = 0
-    # TODO- untested
     for i in range(0, m):
         y_i = np.dot(B_inv, A[:, i : i + 1])
         y_i_bar_y_k = y_i / y_k
@@ -663,7 +667,6 @@ def solve_normal_simplex(
         if argparser.args.min:
             if max_zj_cj < 0:
                 # we are done
-                # print("optimal min is:", np.sum(objectives))
                 print(
                     "optimal min is:",
                     calculate_optimal(
@@ -673,7 +676,7 @@ def solve_normal_simplex(
                 break
         else:
             if max_zj_cj > 0:
-                # we aredone
+                # we are done
                 print("optimal max is :", np.sum(objectives), k)
                 break
 
@@ -689,13 +692,11 @@ def solve_normal_simplex(
         )
         basis_is_identity = False
 
-        # print("basis_col_list 1: ", basis_col_list)
         leaving_col: int = 0
         for i, basis in enumerate(basis_col_list):
             if basis == r:
                 leaving_col = i
         basis_col_list[leaving_col] = k
-        # print("basis_col_list 2: ", basis_col_list)
 
         if verbose:
             print("B:\n", B)
