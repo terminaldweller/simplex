@@ -154,17 +154,17 @@ def expr_visitor(
                     print(">=", ast_node.comparators[0].value)
                 equ.rhs = float(ast_node.comparators[0].value)
                 equ.operand = ">="
-            elif isinstance(ast_node[0], ast.Gt):
+            elif isinstance(ast_node.ops[0], ast.Gt):
                 if debug:
                     print(">", ast_node.comparators[0].value)
                 equ.rhs = float(ast_node.comparators[0].value)
                 equ.operand = ">"
-            elif isinstance(ast_node[0], ast.Lt):
+            elif isinstance(ast_node.ops[0], ast.Lt):
                 if debug:
                     print("<", ast_node.comparators[0].value)
                 equ.rhs = float(ast_node.comparators[0].value)
                 equ.operand = "<"
-            elif isinstance(ast_node[0], ast.Eq):
+            elif isinstance(ast_node.ops[0], ast.Eq):
                 if debug:
                     print("=", ast_node.comparators[0].value)
                 equ.rhs = float(ast_node.comparators[0].value)
@@ -257,6 +257,7 @@ def build_abc(
     equ_b = []
     binds = []
     # Add the slack variables
+    # FIXME- we are not checking for b >= 0. also we should handle b <= 0.
     for i, equ in enumerate(equs):
         if len(equ.vars_mults) == 1:
             binds.append(equ)
@@ -408,13 +409,9 @@ def find_basis(
         col_list_list.append(v)
     if has_identity:
         B = np.identity(m, dtype=np.float32)
-        # for _, col in col_list.items():
-        #     B[col][col] = 1
         return has_identity, B, col_list_list
-    else:
-        # two phase
-        # big M
-        pass
+    # two phase
+    # big M
 
     return False, B, col_list_list
 
@@ -473,6 +470,9 @@ def calculate_objective(
     return B_inv, objectives, w, C_b
 
 
+# NOTE- there could be more than one minimum
+# also this does not prevent cycling among extreme points
+# currently unused
 def get_non_negative_min(
     M,
     y_k: np.ndarray[typing.Any, np.dtype[np.float32]],
@@ -489,6 +489,67 @@ def get_non_negative_min(
                 minimum_index = i
 
     return minimum, minimum_index
+
+
+def get_leaving_var_lexi(
+    M,
+    B_inv,
+    A,
+    y_k: np.ndarray[typing.Any, np.dtype[np.float32]],
+) -> typing.Tuple[float, int]:
+    """Calculates the leaving variable using the lexicographic rule."""
+    n = M.shape[0]
+    m = M.shape[1]
+    minimum: float = 1e9
+    minimum_index: int = 0
+    minimum_count: int = 0
+    min_indexes: typing.List[int] = []
+    for j in range(0, n):
+        if y_k[j, 0] > 0:
+            if M[j, 0] < minimum:
+                minimum = M[j, 0]
+                minimum_index = j
+                minimum_count = 1
+                min_indexes.clear()
+                min_indexes.append(j)
+            elif M[j, 0] == minimum:
+                minimum_count += 1
+                min_indexes.append(j)
+
+    if minimum_count == 1:
+        return minimum, minimum_index
+
+    minimum = 1e9
+    minimum_index = 0
+    minimum_count = 0
+    # TODO- untested
+    for i in range(0, m):
+        y_i = np.dot(B_inv, A[:, i : i + 1])
+        y_i_bar_y_k = y_i / y_k
+        for j in range(0, n):
+            if j in min_indexes:
+                if y_i_bar_y_k[j, 0] < minimum:
+                    minimum = y_i_bar_y_k[j, 0]
+                    minimum_index = j
+                    minimum_count = 1
+                    min_indexes.clear()
+                    min_indexes.append(j)
+                elif y_i_bar_y_k[j, 0] == minimum:
+                    minimum_count += 1
+                    min_indexes.append(j)
+        # we expect to return until i=(m-1) i.e. for the mth column.
+        # if we don't, then the columns of B_inv were not linearly
+        # independent. We know the columns of B_inv are linearly
+        # independent so it's mathematically fine.
+        if len(min_indexes) == 1:
+            return minimum, minimum_index
+
+        minimum = 1e9
+        minimum_index = 0
+        minimum_count = 0
+
+    # we should never return from here
+    return 0, -1
 
 
 def determine_leaving(
@@ -514,7 +575,7 @@ def determine_leaving(
     b_bar_plus = b_bar[b_bar > 0]
     b_bar_div_y = np.divide(b_bar_plus[:, None], y_k)
     print("b_bar_div_y:\n", b_bar_div_y)
-    _, r = get_non_negative_min(b_bar_div_y, y_k)
+    _, r = get_leaving_var_lexi(b_bar_div_y, B_inv, A, y_k)
     rr = basis_col_list[r]
     if verbose:
         print("b_bar/y_k:\n", b_bar_div_y)
