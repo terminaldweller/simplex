@@ -537,7 +537,6 @@ def find_identity(
         last_one_row = 0
 
     print("ones:", ones)
-    print("XXXcol_list:\n", col_list)
     if ones == (m * (m + 1)) / 2:
         return True, col_list
     return False, col_list
@@ -709,7 +708,7 @@ def get_leaving_var_lexi(
     """Calculates the leaving variable using the lexicographic rule."""
     n = M.shape[0]
     m = M.shape[1]
-    minimum: float = 1e9
+    minimum: float = 1e100
     minimum_index: int = 0
     minimum_count: int = 0
     min_indexes: typing.List[int] = []
@@ -728,9 +727,10 @@ def get_leaving_var_lexi(
     if minimum_count == 1:
         return minimum, minimum_index
 
-    minimum = 1e9
+    minimum = 1e100
     minimum_index = 0
     minimum_count = 0
+    min_next_indexes: typing.List[int] = []
     for i in range(0, m):
         y_i = np.dot(B_inv, A[:, i : i + 1])
         y_i_bar_y_k = y_i / y_k
@@ -740,19 +740,21 @@ def get_leaving_var_lexi(
                     minimum = y_i_bar_y_k[j, 0]
                     minimum_index = j
                     minimum_count = 1
-                    min_indexes.clear()
-                    min_indexes.append(j)
+                    min_next_indexes.clear()
+                    min_next_indexes.append(j)
                 elif y_i_bar_y_k[j, 0] == minimum:
                     minimum_count += 1
-                    min_indexes.append(j)
+                    min_next_indexes.append(j)
         # we expect to return until i=(m-1) i.e. for the mth column.
         # if we don't, then the columns of B_inv were not linearly
         # independent. We know the columns of B_inv are linearly
         # independent so it's mathematically fine.
-        if len(min_indexes) == 1:
+        if len(min_next_indexes) == 1:
             return minimum, minimum_index
+        min_indexes = min_next_indexes
+        min_next_indexes = []
 
-        minimum = 1e9
+        minimum = 1e100
         minimum_index = 0
         minimum_count = 0
 
@@ -781,9 +783,9 @@ def determine_leaving(
         print("b_bar:\n", b_bar)
 
     # FIXME
-    b_bar_plus = b_bar[b_bar > 0]
-    b_bar_div_y = np.divide(b_bar_plus[:, None], y_k)
-    # b_bar_div_y = np.divide(b_bar[:, None], y_k)
+    # b_bar_plus = b_bar[b_bar > 0]
+    # b_bar_div_y = np.divide(b_bar_plus[:, None], y_k)
+    b_bar_div_y = np.divide(b_bar[:, :], y_k)
     print("b_bar_div_y:\n", b_bar_div_y)
     _, r = get_leaving_var_lexi(b_bar_div_y, B_inv, A, y_k)
     rr = basis_col_list[r]
@@ -907,6 +909,7 @@ def solve_normal_simplex(
                 break
 
         y_k = np.dot(B_inv, A[:, k : k + 1])
+        # y_k = np.matmul(B_inv, A[:, k : k + 1])
         print("y_k:\n", y_k)
         if np.all(np.less_equal(y_k, 0)):
             # we are done
