@@ -447,18 +447,7 @@ def construct_lp_problem(
         equs, cost_equ, var_list, slack_counter, slack, verbose
     )
 
-    # basis_is_identity, B, basis_col_list = find_basic_feasible_solution(
-    #     A,
-    #     b,
-    #     C,
-    #     equs,
-    #     cost_equ,
-    #     var_list,
-    #     is_minimum,
-    #     aux_var_name,
-    # )
     m: int = A.shape[0]
-    # B: np.ndarray = np.zeros((m, m), dtype=np.float32)
 
     has_identity, col_list = find_identity(A)
     if has_identity and col_list is not None:
@@ -466,13 +455,12 @@ def construct_lp_problem(
         col_list_list: typing.List[int] = []
         for _, v in col_list.items():
             col_list_list.append(v)
-
-        # return has_identity, B, col_list_list
     else:
         # big M
         m_zero: float = calculate_big_m_zero(A, b, C)
         print("m_zero:", m_zero)
         ones_column_list = get_ones(A)
+        print("ones_column_list:\n", ones_column_list)
         build_identity(
             A,
             equs,
@@ -494,8 +482,7 @@ def construct_lp_problem(
             for _, v in col_list.items():
                 col_list_list.append(v)
 
-            # B = np.identity(m, dtype=np.float32)
-            # return has_identity, B, col_list_list
+    # we will always have an identity basis
     B = np.identity(m, dtype=np.float32)
 
     return (
@@ -557,6 +544,7 @@ def get_ones(
     m: int = A.shape[0]
     n: int = A.shape[1]
     seen_a_one: bool = False
+    seen_trash: bool = False
     one_index: int = -1
     col_sum: float = 0
     col_list: typing.Dict[int, int] = {}
@@ -573,10 +561,13 @@ def get_ones(
                 seen_a_one = True
                 one_index = i
             else:
+                seen_trash = True
                 break
-        if seen_a_one and col_sum == 1:
+        if seen_a_one and col_sum == 1 and not seen_trash:
             col_list[one_index] = j
         seen_a_one = False
+        seen_trash = False
+        col_sum = 0
 
     return col_list
 
@@ -603,10 +594,11 @@ def build_identity(
             # we need an aux value here
             equs[i].vars_mults[aux_var_name + repr(count)] = 1
             if is_minimum:
-                cost.vars_mults[aux_var_name + repr(count)] = -1 * m_zero
+                cost.vars_mults[aux_var_name + repr(count)] = 1 * m_zero
             else:
-                cost.vars_mults[aux_var_name + repr(count)] = m_zero
+                cost.vars_mults[aux_var_name + repr(count)] = -1 * m_zero
             var_list[aux_var_name + repr(count)] = True
+            count += 1
 
 
 def calculate_big_m_zero(
@@ -625,56 +617,56 @@ def calculate_big_m_zero(
 
 
 # TODO- implement big M
-def find_basic_feasible_solution(
-    A,
-    b,
-    C: np.ndarray[typing.Any, np.dtype[np.float32]],
-    equs: typing.List[Equation],
-    cost_equ: Equation,
-    var_list: typing.Dict[str, bool],
-    is_minimum: bool,
-    aux_var_name: str,
-) -> typing.Tuple[
-    bool, np.ndarray[typing.Any, np.dtype[np.float32]], typing.List[int]
-]:
-    """Find or Create an identity basis for A."""
-    m: int = A.shape[0]
-    B: np.ndarray = np.zeros((m, m), dtype=np.float32)
+# def find_basic_feasible_solution(
+#     A,
+#     b,
+#     C: np.ndarray[typing.Any, np.dtype[np.float32]],
+#     equs: typing.List[Equation],
+#     cost_equ: Equation,
+#     var_list: typing.Dict[str, bool],
+#     is_minimum: bool,
+#     aux_var_name: str,
+# ) -> typing.Tuple[
+#     bool, np.ndarray[typing.Any, np.dtype[np.float32]], typing.List[int]
+# ]:
+#     """Find or Create an identity basis for A."""
+#     m: int = A.shape[0]
+#     B: np.ndarray = np.zeros((m, m), dtype=np.float32)
 
-    has_identity, col_list = find_identity(A)
-    if has_identity and col_list is not None:
-        print("col_list:", col_list)
-        col_list_list: typing.List[int] = []
-        for _, v in col_list.items():
-            col_list_list.append(v)
+#     has_identity, col_list = find_identity(A)
+#     if has_identity and col_list is not None:
+#         print("col_list:", col_list)
+#         col_list_list: typing.List[int] = []
+#         for _, v in col_list.items():
+#             col_list_list.append(v)
 
-        B = np.identity(m, dtype=np.float32)
-        return has_identity, B, col_list_list
-    # big M
-    m_zero: float = calculate_big_m_zero(A, b, C)
-    print("m_zero:", m_zero)
-    ones_column_list = get_ones(A)
-    build_identity(
-        A,
-        equs,
-        cost_equ,
-        aux_var_name,
-        m_zero,
-        is_minimum,
-        var_list,
-        ones_column_list,
-    )
-    has_identity, col_list = find_identity(A)
-    if has_identity and col_list is not None:
-        print("col_list:", col_list)
-        col_list_list = []
-        for _, v in col_list.items():
-            col_list_list.append(v)
+#         B = np.identity(m, dtype=np.float32)
+#         return has_identity, B, col_list_list
+#     # big M
+#     m_zero: float = calculate_big_m_zero(A, b, C)
+#     print("m_zero:", m_zero)
+#     ones_column_list = get_ones(A)
+#     build_identity(
+#         A,
+#         equs,
+#         cost_equ,
+#         aux_var_name,
+#         m_zero,
+#         is_minimum,
+#         var_list,
+#         ones_column_list,
+#     )
+#     has_identity, col_list = find_identity(A)
+#     if has_identity and col_list is not None:
+#         print("col_list:", col_list)
+#         col_list_list = []
+#         for _, v in col_list.items():
+#             col_list_list.append(v)
 
-        B = np.identity(m, dtype=np.float32)
-        return has_identity, B, col_list_list
+#         B = np.identity(m, dtype=np.float32)
+#         return has_identity, B, col_list_list
 
-    return False, B, col_list_list
+#     return False, B, col_list_list
 
 
 # @nb.jit(nopython=True, cache=True)
@@ -1007,16 +999,6 @@ def main() -> None:
         argparser.args.min,
         argparser.args.aux,
     )
-    # basis_is_identity, B, basis_col_list = find_basic_feasible_solution(
-    #     A,
-    #     b,
-    #     C,
-    #     equs,
-    #     cost_equ,
-    #     var_list,
-    #     argparser.args.min,
-    #     argparser.args.aux,
-    # )
     solve_normal_simplex(
         A,
         b,
