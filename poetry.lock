@@ -39,8 +39,8 @@ numpy = ">=1.17.3,<1.25.0"
 
 [metadata]
 lock-version = "1.1"
-python-versions = "3.10"
-content-hash = "559874af1d9473f4c5f063d9228af74375ca32fb56d8d8c30169603c86002634"
+python-versions = ">=3.10,<3.11"
+content-hash = "83eb5e17d1a712746fd82769cdd1ddc5765de21b13951b29f8affd758e779019"
 
 [metadata.files]
 llvmlite = [

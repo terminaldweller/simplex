@@ -406,7 +406,7 @@ def find_identity(
 
 
 # TODO- implement two phase
-def find_basis(
+def find_basic_feasible_solution(
     A, b: np.ndarray[typing.Any, np.dtype[np.float32]]
 ) -> typing.Tuple[
     bool, np.ndarray[typing.Any, np.dtype[np.float32]], typing.List[int]
@@ -586,6 +586,7 @@ def determine_leaving(
         print("b_bar:\n", b_bar)
 
     b_bar_plus = b_bar[b_bar > 0]
+    # b_bar_plus = b_bar[b_bar < 0]
     b_bar_div_y = np.divide(b_bar_plus[:, None], y_k)
     print("b_bar_div_y:\n", b_bar_div_y)
     _, r = get_leaving_var_lexi(b_bar_div_y, B_inv, A, y_k)
@@ -599,11 +600,11 @@ def determine_leaving(
     return rr, B
 
 
-def get_k(
+def get_k_for_min(
     M: np.ndarray[typing.Any, np.dtype[np.float32]],
     basis_col_list: typing.List[int],
 ) -> typing.Tuple[int, float]:
-    """get the index of the entering variable."""
+    """get the index of the entering variable for a minimization problem."""
     n = M.shape[1]
     maximum: float = -1e9
     maximum_index: int = -1
@@ -614,6 +615,23 @@ def get_k(
                 maximum_index = i
 
     return maximum_index, maximum
+
+
+def get_k_for_max(
+    M: np.ndarray[typing.Any, np.dtype[np.float32]],
+    basis_col_list: typing.List[int],
+) -> typing.Tuple[int, float]:
+    """get the index of the entering variable for a maximization problem."""
+    n = M.shape[1]
+    minimum: float = 1e9
+    minimum_index: int = -1
+    for i in range(0, n):
+        if i not in basis_col_list:
+            if M[0, i] < minimum:
+                minimum = M[0, i]
+                minimum_index = i
+
+    return minimum_index, minimum
 
 
 def calculate_optimal(
@@ -651,7 +669,7 @@ def solve_normal_simplex(
 ) -> None:
     """Solve using the normal simplex method."""
     verbose: bool = argparser.args.verbose
-    basis_is_identity, B, basis_col_list = find_basis(A, b)
+    basis_is_identity, B, basis_col_list = find_basic_feasible_solution(A, b)
     round_count: int = 0
     while True:
         round_count += 1
@@ -660,12 +678,17 @@ def solve_normal_simplex(
         )
         if verbose:
             print("w:\n", w)
-        k, _ = get_k(objectives, basis_col_list)
+
+        if argparser.args.min:
+            k, _ = get_k_for_min(objectives, basis_col_list)
+        else:
+            k, _ = get_k_for_max(objectives, basis_col_list)
         if verbose:
             print("k: ", k)
-        max_zj_cj = objectives[0, k]
+        extrmem_zj_cj = objectives[0, k]
+
         if argparser.args.min:
-            if max_zj_cj < 0:
+            if extrmem_zj_cj < 0:
                 # we are done
                 print(
                     "optimal min is:",
@@ -675,9 +698,14 @@ def solve_normal_simplex(
                 )
                 break
         else:
-            if max_zj_cj > 0:
+            if extrmem_zj_cj > 0:
                 # we are done
-                print("optimal max is :", np.sum(objectives), k)
+                print(
+                    "optimal max is:",
+                    calculate_optimal(
+                        b, B_inv, C_b, basis_col_list, var_sorted_list
+                    ),
+                )
                 break
 
         y_k = np.dot(B_inv, A[:, k : k + 1])
