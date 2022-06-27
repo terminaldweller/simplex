@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-# ./simplex.py -e ./equ4.txt -v -s z -m
+#!/usr/bin/env python3
+# ./simplex.py -e ./tests/equ4.py -v -s z -m
+# ./simplex.py -e ./tests/equ9.py -v -s z
 """python simplex implementation"""
 
 import argparse
@@ -31,14 +32,22 @@ class Argparser:  # pylint: disable=too-few-public-methods
             type=str,
             help="slack variable base name, names are creted"
             "by adding a number to the string",
-            default="xx",
+            default="s",
+        )
+        parser.add_argument(
+            "--aux",
+            "-a",
+            type=str,
+            help="aux variable base name, names are creted"
+            "by adding a number to the string",
+            default="xa",
         )
         parser.add_argument(
             "--iter",
             "-i",
             type=int,
             help="maximum number of iterations",
-            default=10,
+            default=50,
         )
         parser.add_argument(
             "--min",
@@ -245,30 +254,48 @@ def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
     return equs
 
 
-def build_abc(
-    equs: typing.List[Equation], verbose: bool, slack: str
+def add_slack_vars(
+    equs: typing.List[Equation], slack: str, verbose: bool
 ) -> typing.Tuple[
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    typing.List[str],
+    typing.List[Equation],
+    Equation,
+    typing.List[Equation],
+    int,
+    typing.Dict[str, bool],
 ]:
-    """Build the A matrix, adding the slack variable along the way."""
+    """Add the slack variables, change b to all positives if necessary."""
     var_list: typing.Dict[str, bool] = {}
-    var_sorted_list: typing.List[str] = []
     slack_counter: int = 1
 
     equ_b = []
     binds = []
     # Add the slack variables
-    # FIXME- we are not checking for b >= 0. also we should handle b <= 0.
     for i, equ in enumerate(equs):
-        if len(equ.vars_mults) == 1:
+        # we assume that b > 0, if not we multiply the equation
+        # by -1 and flip the operand accordingly
+        # TODO-test me
+        if equ.rhs < 0:
+            for i in equ.vars_mults:
+                equ.vars_mults[i] = equ.vars_mults[i] * -1
+            equ.rhs = equ.rhs * -1
+            if equ.operand == "<=":
+                equ.operand = ">="
+            elif equ.operand == "<":
+                equ.operand = ">"
+            elif equ.operand == ">=":
+                equ.operand = "<="
+            elif equ.operand == ">":
+                equ.operand = "<"
+            else:
+                # for ==, we dont need to change the operand
+                pass
+
+        if len(equ.vars_mults) == 1 and equ.rhs == 0:
             binds.append(equ)
             continue
 
         if equ.operand in ("<=", "<"):
-            if len(equ.vars_mults) > 1:
+            if len(equ.vars_mults) >= 1:
                 equ.vars_mults[slack + repr(slack_counter)] = 1
                 slack_counter += 1
             if equ.operand == "<=":
@@ -276,7 +303,7 @@ def build_abc(
             else:
                 binds.append(Equation({slack + repr(i): 1}, ">", 0.0))
         elif equ.operand in (">=", ">"):
-            if len(equ.vars_mults) > 1:
+            if len(equ.vars_mults) >= 1:
                 equ.vars_mults[slack + repr(slack_counter)] = -1
                 slack_counter += 1
             if equ.operand == ">=":
@@ -312,18 +339,36 @@ def build_abc(
         print("binds:")
         for bind in binds:
             print(bind)
-        print(var_list)
+        print("var_list:\n", var_list)
 
+    return equs, equ_b[0], binds, slack_counter, var_list
+
+
+def build_abc(
+    equs: typing.List[Equation],
+    cost_equ: Equation,
+    var_list: typing.Dict[str, bool],
+    slack_counter: int,
+    slack: str,
+    verbose: bool,
+) -> typing.Tuple[
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    typing.List[str],
+]:
+    """Build A,b and C."""
+    var_sorted_list: typing.List[str] = []
     m: int = len(equs)
     n: int = len(var_list)
-
-    if verbose:
-        print(f"m: {m}, n: {n}")
 
     var_names: typing.List = []
     for key, _ in var_list.items():
         var_names.append(key)
     var_names.sort()
+
+    if verbose:
+        print(f"m: {m}, n: {n}")
 
     A: np.ndarray = np.zeros((m, n), dtype=np.float32)
     b: np.ndarray = np.zeros((m, 1), dtype=np.float32)
@@ -336,13 +381,15 @@ def build_abc(
             else:
                 A[i][j] = 0
 
+    # check for big M
+
     # build b
     for i in range(0, m):
         b[i, 0] = equs[i].rhs
 
     # Add the slack variables to the cost function
     for i in range(1, slack_counter):
-        equ_b[0].vars_mults[slack + repr(i)] = 0
+        cost_equ.vars_mults[slack + repr(i)] = 0
 
     # build the list of the variables sorted lexicographically
     for _, v in enumerate(iter(sorted(var_list))):
@@ -351,12 +398,13 @@ def build_abc(
         print("var_list: ", var_sorted_list)
 
     # build C
-    for i, (_, v) in enumerate(iter(sorted(equ_b[0].vars_mults.items()))):
-        print("XXX:", i, _, v)
+    for i, (k, v) in enumerate(iter(sorted(cost_equ.vars_mults.items()))):
+        # gets the index of the variable in the sorted list
+        # we need to put zeroes for non-existant vars
         index: typing.List[int] = [
             j
             for j in range(0, len(var_sorted_list))
-            if var_sorted_list[j] == _
+            if var_sorted_list[j] == k
         ]
         C[0, index[0]] = v
 
@@ -366,6 +414,102 @@ def build_abc(
         print("C:\n", C)
 
     return A, b, C, var_sorted_list
+
+
+def construct_lp_problem(
+    equs: typing.List[Equation],
+    verbose: bool,
+    slack: str,
+    is_minimum: bool,
+    aux_var_name: str,
+) -> typing.Tuple[
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    np.ndarray[typing.Any, np.dtype[np.float32]],
+    typing.List[Equation],
+    Equation,
+    typing.List[str],
+    typing.Dict[str, bool],
+    bool,
+    typing.List[int],
+]:
+    """Construct the LP problem."""
+    var_list: typing.Dict[str, bool] = {}
+    var_sorted_list: typing.List[str] = []
+    slack_counter: int = 0
+
+    equs, cost_equ, _, slack_counter, var_list = add_slack_vars(
+        equs, slack, verbose
+    )
+
+    A, b, C, var_sorted_list = build_abc(
+        equs, cost_equ, var_list, slack_counter, slack, verbose
+    )
+
+    # basis_is_identity, B, basis_col_list = find_basic_feasible_solution(
+    #     A,
+    #     b,
+    #     C,
+    #     equs,
+    #     cost_equ,
+    #     var_list,
+    #     is_minimum,
+    #     aux_var_name,
+    # )
+    m: int = A.shape[0]
+    # B: np.ndarray = np.zeros((m, m), dtype=np.float32)
+
+    has_identity, col_list = find_identity(A)
+    if has_identity and col_list is not None:
+        print("col_list:", col_list)
+        col_list_list: typing.List[int] = []
+        for _, v in col_list.items():
+            col_list_list.append(v)
+
+        # return has_identity, B, col_list_list
+    else:
+        # big M
+        m_zero: float = calculate_big_m_zero(A, b, C)
+        print("m_zero:", m_zero)
+        ones_column_list = get_ones(A)
+        build_identity(
+            A,
+            equs,
+            cost_equ,
+            aux_var_name,
+            m_zero,
+            is_minimum,
+            var_list,
+            ones_column_list,
+        )
+        # update the A and C and var_list
+        A, b, C, var_sorted_list = build_abc(
+            equs, cost_equ, var_list, slack_counter, slack, verbose
+        )
+        has_identity, col_list = find_identity(A)
+        if has_identity and col_list is not None:
+            print("col_list:", col_list)
+            col_list_list = []
+            for _, v in col_list.items():
+                col_list_list.append(v)
+
+            # B = np.identity(m, dtype=np.float32)
+            # return has_identity, B, col_list_list
+    B = np.identity(m, dtype=np.float32)
+
+    return (
+        A,
+        b,
+        B,
+        C,
+        equs,
+        cost_equ,
+        var_sorted_list,
+        var_list,
+        has_identity,
+        col_list_list,
+    )
 
 
 # @nb.jit(nopython=True, cache=True)
@@ -382,6 +526,7 @@ def find_identity(
     n: int = A.shape[1]
     col_list: typing.Dict[int, int] = {}
 
+    # bye-bye cache locality
     for j in range(0, n):
         for i in range(0, m):
             if A[i][j] != 1 and A[i][j] != 0:
@@ -405,13 +550,94 @@ def find_identity(
     return False, None
 
 
-# TODO- implement two phase
+def get_ones(
+    A: np.ndarray[typing.Any, np.dtype[np.float32]]
+) -> typing.Dict[int, int]:
+    """Extract the available ones that we can get from A."""
+    m: int = A.shape[0]
+    n: int = A.shape[1]
+    seen_a_one: bool = False
+    one_index: int = -1
+    col_sum: float = 0
+    col_list: typing.Dict[int, int] = {}
+
+    # bye-bye cache locality
+    for j in range(0, n):
+        for i in range(0, m):
+            col_sum += col_sum + A[i, j]
+            if A[i, j] == 0:
+                continue
+            if A[i, j] == 1:
+                if seen_a_one:
+                    break
+                seen_a_one = True
+                one_index = i
+            else:
+                break
+        if seen_a_one and col_sum == 1:
+            col_list[one_index] = j
+        seen_a_one = False
+
+    return col_list
+
+
+def build_identity(
+    A: np.ndarray[typing.Any, np.dtype[np.float32]],
+    equs: typing.List[Equation],
+    cost: Equation,
+    aux_var_name: str,
+    m_zero: float,
+    is_minimum: bool,
+    var_list: typing.Dict[str, bool],
+    col_list: typing.Dict[int, int],
+) -> None:
+    """Build an identity matrix by adding auxillary variables."""
+    m: int = A.shape[0]
+    count: int = 1
+    for i in range(0, m):
+        if i in col_list:
+            # we dont need to do anything here, we already have a one
+            # on this row
+            pass
+        else:
+            # we need an aux value here
+            equs[i].vars_mults[aux_var_name + repr(count)] = 1
+            if is_minimum:
+                cost.vars_mults[aux_var_name + repr(count)] = -1 * m_zero
+            else:
+                cost.vars_mults[aux_var_name + repr(count)] = m_zero
+            var_list[aux_var_name + repr(count)] = True
+
+
+def calculate_big_m_zero(
+    A, b, C: np.ndarray[typing.Any, np.dtype[np.float32]]
+) -> float:
+    """Calculate big M0 according to this:
+    https://www.atlantis-press.com/article/25838434.pdf
+    """
+    m: int = A.shape[0]
+    n: int = A.shape[1]
+    alpha: float = np.max(A)
+    beta: float = np.max(b)
+    gamma: float = np.max(C)
+    m_zero: float = 2 * n * pow(m, m) * pow(alpha, m - 1) * beta * gamma
+    return m_zero
+
+
+# TODO- implement big M
 def find_basic_feasible_solution(
-    A, b: np.ndarray[typing.Any, np.dtype[np.float32]]
+    A,
+    b,
+    C: np.ndarray[typing.Any, np.dtype[np.float32]],
+    equs: typing.List[Equation],
+    cost_equ: Equation,
+    var_list: typing.Dict[str, bool],
+    is_minimum: bool,
+    aux_var_name: str,
 ) -> typing.Tuple[
     bool, np.ndarray[typing.Any, np.dtype[np.float32]], typing.List[int]
 ]:
-    """Find a basis for A."""
+    """Find or Create an identity basis for A."""
     m: int = A.shape[0]
     B: np.ndarray = np.zeros((m, m), dtype=np.float32)
 
@@ -424,8 +650,29 @@ def find_basic_feasible_solution(
 
         B = np.identity(m, dtype=np.float32)
         return has_identity, B, col_list_list
-    # two phase
     # big M
+    m_zero: float = calculate_big_m_zero(A, b, C)
+    print("m_zero:", m_zero)
+    ones_column_list = get_ones(A)
+    build_identity(
+        A,
+        equs,
+        cost_equ,
+        aux_var_name,
+        m_zero,
+        is_minimum,
+        var_list,
+        ones_column_list,
+    )
+    has_identity, col_list = find_identity(A)
+    if has_identity and col_list is not None:
+        print("col_list:", col_list)
+        col_list_list = []
+        for _, v in col_list.items():
+            col_list_list.append(v)
+
+        B = np.identity(m, dtype=np.float32)
+        return has_identity, B, col_list_list
 
     return False, B, col_list_list
 
@@ -663,13 +910,15 @@ def calculate_optimal(
 def solve_normal_simplex(
     A,
     b,
-    C: np.ndarray[typing.Any, np.dtype[np.float32]],
+    C,
+    B: np.ndarray[typing.Any, np.dtype[np.float32]],
+    basis_is_identity: bool,
+    basis_col_list: typing.List,
     var_sorted_list: typing.List[str],
     argparser: Argparser,
 ) -> None:
     """Solve using the normal simplex method."""
     verbose: bool = argparser.args.verbose
-    basis_is_identity, B, basis_col_list = find_basic_feasible_solution(A, b)
     round_count: int = 0
     while True:
         round_count += 1
@@ -712,6 +961,7 @@ def solve_normal_simplex(
         print("y_k:\n", y_k)
         if np.all(np.less_equal(y_k, 0)):
             # we are done
+            # TODO- print the direction along which the value is unbounded
             print("unbounded optimal value.")
             break
         print(y_k)
@@ -739,8 +989,44 @@ def main() -> None:
     argparser = Argparser()
     verbose = argparser.args.verbose
     equs = parse_equations(argparser.args.equs, argparser.args.debug)
-    A, b, C, var_sorted_list = build_abc(equs, verbose, argparser.args.slack)
-    solve_normal_simplex(A, b, C, var_sorted_list, argparser)
+    (
+        A,
+        b,
+        B,
+        C,
+        equs,
+        cost_equ,
+        var_sorted_list,
+        var_list,
+        basis_is_identity,
+        basis_col_list,
+    ) = construct_lp_problem(
+        equs,
+        verbose,
+        argparser.args.slack,
+        argparser.args.min,
+        argparser.args.aux,
+    )
+    # basis_is_identity, B, basis_col_list = find_basic_feasible_solution(
+    #     A,
+    #     b,
+    #     C,
+    #     equs,
+    #     cost_equ,
+    #     var_list,
+    #     argparser.args.min,
+    #     argparser.args.aux,
+    # )
+    solve_normal_simplex(
+        A,
+        b,
+        C,
+        B,
+        basis_is_identity,
+        basis_col_list,
+        var_sorted_list,
+        argparser,
+    )
 
 
 if __name__ == "__main__":
