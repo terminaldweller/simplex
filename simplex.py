@@ -92,12 +92,21 @@ class Equation:
 
 
 @dataclasses.dataclass
-class RoundResult:
-    """The class will hold each round'd results for verbose display."""
+class LP:
+    """This class holds the information for an LP problem"""
 
-    curr_basis: np.ndarray
-    curr_x: np.ndarray
-    curr_cost: float
+    equs: typing.Optional[typing.List[Equation]]
+    cost_equ: typing.Optional[Equation]
+    binds: typing.Optional[typing.List[Equation]]
+    A: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
+    b: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
+    B: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
+    B_inv: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
+    C: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
+    y_k: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
+    basis_column_list: typing.Optional[typing.List[int]]
+    sorted_var_list: typing.Optional[typing.List[str]]
+    is_minimum: typing.Optional[bool]
 
 
 @typing.no_type_check
@@ -449,7 +458,7 @@ def construct_lp_problem(
 
     m: int = A.shape[0]
     col_list_list: typing.List[int] = []
-    col_list: typing.List[int] = []
+    col_list: typing.Dict[int, int] = {}
 
     has_identity, col_list = find_identity(A)
     if has_identity and col_list is not None:
@@ -461,7 +470,6 @@ def construct_lp_problem(
         m_zero: float = calculate_big_m_zero(A, b, C)
         print("m_zero:", m_zero)
         ones_column_list = get_ones(A)
-        # _, ones_column_list = find_identity(A)
         print("ones_column_list:\n", ones_column_list)
         build_identity(
             A,
@@ -477,10 +485,9 @@ def construct_lp_problem(
         A, b, C, var_sorted_list = build_abc(
             equs, cost_equ, var_list, slack_counter, slack, verbose
         )
-        col_list = []
+        col_list = {}
         has_identity, col_list = find_identity(A)
         if has_identity and col_list is not None:
-            print("YYYYcol_list:", col_list)
             for _, v in col_list.items():
                 col_list_list.append(v)
 
@@ -504,7 +511,7 @@ def construct_lp_problem(
 # @nb.jit(nopython=True, cache=True)
 def find_identity(
     A: np.ndarray[typing.Any, np.dtype[np.float32]],
-) -> typing.Tuple[bool, typing.Optional[typing.Dict[int, int]]]:
+) -> typing.Tuple[bool, typing.Dict[int, int]]:
     """Tries to find one m*m identity matrix
     inside A, returns one that it finds."""
     ones_count: int = 0
@@ -522,7 +529,6 @@ def find_identity(
                 cancelled = True
                 break
             if A[i][j] == 1:
-                # print("TTTTT i , j:", i, j)
                 ones_count += 1
                 last_one_row = i + 1
         if cancelled:
@@ -782,9 +788,6 @@ def determine_leaving(
     if verbose:
         print("b_bar:\n", b_bar)
 
-    # FIXME
-    # b_bar_plus = b_bar[b_bar > 0]
-    # b_bar_div_y = np.divide(b_bar_plus[:, None], y_k)
     b_bar_div_y = np.divide(b_bar[:, :], y_k)
     print("b_bar_div_y:\n", b_bar_div_y)
     _, r = get_leaving_var_lexi(b_bar_div_y, B_inv, A, y_k)
@@ -909,7 +912,6 @@ def solve_normal_simplex(
                 break
 
         y_k = np.dot(B_inv, A[:, k : k + 1])
-        # y_k = np.matmul(B_inv, A[:, k : k + 1])
         print("y_k:\n", y_k)
         if np.all(np.less_equal(y_k, 0)):
             # we are done
@@ -947,9 +949,9 @@ def main() -> None:
         B,
         C,
         equs,
-        cost_equ,
+        _,
         var_sorted_list,
-        var_list,
+        _,
         basis_is_identity,
         basis_col_list,
     ) = construct_lp_problem(
