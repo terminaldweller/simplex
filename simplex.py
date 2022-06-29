@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# ./simplex.py -e ./tests/equ4.py -v -s z -m
-# ./simplex.py -e ./tests/equ9.py -v -s z
 """python simplex implementation"""
 
 import argparse
