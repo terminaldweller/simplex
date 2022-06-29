@@ -35,5 +35,15 @@ Example usage:<br/>
 ./simplex.py -e ./tests/equ6.py -a xa -v -s z -m
 ```
 
+## How to Get
+You can get it from [pypi](https://pypi.org/project/dsimplex/):<br/>
+```sh
+pip3 install dsimplex
+```
+Or you can clone this repo and run it like that:<br/>
+```sh
+git clone https://github.com/terminaldweller/simplex && cd simplex && poetry install
+```
+
 ## TODO
 * Use numba
