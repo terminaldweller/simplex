@@ -32,7 +32,7 @@ options:
 ```
 Example usage:<br/>
 ```sh
-./simplex.py -e ./tests/equ6.py -a xa -v -s z -m
+dsimplex -e ./tests/equ6.py -a xa -v -s z -m
 ```
 
 ## How to Get
