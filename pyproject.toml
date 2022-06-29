@@ -1,21 +1,25 @@
 [tool.poetry]
-name = "simplex"
-version = "0.1.0"
+name = "dsimplex"
+version = "0.1.10"
 description = ""
 authors = ["terminaldweller <thabogre@gmail.com>"]
-license = "GPLv3.0"
+license = "GPL3"
 readme = "README.md"
 homepage = "https://github.com/terminaldweller/simplex"
 repository = "https://github.com/terminaldweller/simplex"
 keywords = ["simplex","linear-programming","lp"]
 classifiers = [
     "Environment :: Console",
-    "Topic :: Linear Programming",
-    "Topic :: Simplex",
 ]
 include = [
     "LICENSE",
 ]
+packages = [
+{include = "dsimplex"}
+]
+
+[tool.poetry.scripts]
+dsimplex = "dsimplex.simplex:dsimplex"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"

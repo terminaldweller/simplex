@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """python simplex implementation"""
 
 import argparse
@@ -936,7 +935,7 @@ def solve_normal_simplex(
             break
 
 
-def main() -> None:
+def dsimplex() -> None:
     """The entry point for the module."""
     argparser = Argparser()
     verbose = argparser.args.verbose
@@ -969,7 +968,3 @@ def main() -> None:
         var_sorted_list,
         argparser,
     )
-
-
-if __name__ == "__main__":
-    main()
