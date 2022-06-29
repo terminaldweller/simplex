@@ -282,8 +282,8 @@ def add_slack_vars(
         # by -1 and flip the operand accordingly
         # TODO-test me
         if equ.rhs < 0:
-            for i in equ.vars_mults:
-                equ.vars_mults[i] = equ.vars_mults[i] * -1
+            for j in equ.vars_mults:
+                equ.vars_mults[j] = equ.vars_mults[j] * -1
             equ.rhs = equ.rhs * -1
             if equ.operand == "<=":
                 equ.operand = ">="
@@ -657,7 +657,7 @@ def calculate_objective(
     """Calculate C_b*B^-1*b."""
     m: int = len(basic_var_column_list)
     C_b = np.zeros((1, m), dtype=np.float32)
-    objectives = np.zeros((1, m), dtype=np.float32)
+    # objectives = np.zeros((1, m), dtype=np.float32)
 
     if basis_is_identity:
         B_inv = B
