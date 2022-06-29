@@ -35,6 +35,29 @@ Example usage:<br/>
 dsimplex -e ./tests/equ6.py -a xa -v -s z -m
 ```
 
+## The Equation File
+Each equation in the equations file should a valid python expression. There are a couple notes though:<br/>
+* For conditions that end in equality you must use `==` instead of `=` to make it a legal python expression.
+* Nothing will be evaluated so writing something like `4/5*x1` is illegal. Use `.8*x1` instead.
+* You can use comments inside the equations file. They are the same format as the python comments.
+* The cost equation is one without a binary comparison operator, e.g. `<=,<,>=,>`.
+* The order of the equations in the equations file is not important. You can put them in in any order you want.
+As an example:<br/>
+```py
+# cyclic test
+-0.75 * x4 + 20 * x5 - 0.5 * x6 + 6 * x7
+x1 + 0.25 * x4 - 8 * x5 - x6 + 9 * x7 == 0
+x2 + 0.5 * x4 - 12 * x5 - 0.5 * x6 + 3 * x7 == 0
+x3 + x6 == 1
+x1 >= 0
+x2 >= 0
+x3 >= 0
+x4 >= 0
+x5 >= 0
+x6 >= 0
+x7 >= 0
+```
+
 ## How to Get
 You can get it from [pypi](https://pypi.org/project/dsimplex/):<br/>
 ```sh
