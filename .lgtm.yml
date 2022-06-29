@@ -1,0 +1,8 @@
+queries:
+  - exclude: tests
+extraction:
+  python:
+    python_setup:
+      requirements:
+        - numpy
+        - scipy
