@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="dsimplex",
-    version="0.1.10",
+    version="0.1.11",
     description="solves LP problems using the simplex method",
     url="https://github.com/terminaldweller/simplex",
     author="terminaldweller",

@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "dsimplex"
-version = "0.1.10"
-description = ""
+version = "0.1.11"
+description = "A simplex implementation in python"
 authors = ["terminaldweller <thabogre@gmail.com>"]
 license = "GPL3"
 readme = "README.md"
