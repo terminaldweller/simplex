@@ -2,10 +2,13 @@
 
 import argparse
 import ast
+import csv
 import dataclasses
 import logging
 import sys
 import typing
+
+import jinja2
 
 # import numba as nb  # type:ignore
 import numpy as np
@@ -20,7 +23,21 @@ class Argparser:  # pylint: disable=too-few-public-methods
             "--equs",
             "-e",
             type=str,
-            help="the file containing the equations",
+            help="the path to the file containing the equations",
+            default=False,
+        )
+        parser.add_argument(
+            "--csv",
+            "-c",
+            type=str,
+            help="the path to the CSV file containing the problem",
+            default=False,
+        )
+        parser.add_argument(
+            "--delim",
+            "-l",
+            type=str,
+            help="the separator for the csv file",
             default=False,
         )
         parser.add_argument(
@@ -68,6 +85,13 @@ class Argparser:  # pylint: disable=too-few-public-methods
             help="whether to print debug info",
             default=False,
         )
+        parser.add_argument(
+            "--out",
+            "-o",
+            action="store_true",
+            help="path to the output file",
+            default="./lp_out.html",
+        )
         # TODO- not being used right now
         parser.add_argument(
             "--numba",
@@ -88,22 +112,84 @@ class Equation:
     rhs: float
 
 
-@dataclasses.dataclass
-class LP:
+class LP_problem:
     """This class holds the information for an LP problem"""
 
-    equs: typing.Optional[typing.List[Equation]]
-    cost_equ: typing.Optional[Equation]
-    binds: typing.Optional[typing.List[Equation]]
-    A: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
-    b: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
-    B: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
-    B_inv: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
-    C: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
-    y_k: typing.Optional[np.ndarray[typing.Any, np.dtype[np.float32]]]
-    basis_column_list: typing.Optional[typing.List[int]]
-    sorted_var_list: typing.Optional[typing.List[str]]
-    is_minimum: typing.Optional[bool]
+    def __init__(self, argparser: Argparser):
+        self.equs: typing.List[Equation] = []
+        self.cost_equ: typing.List[Equation] = []
+        self.binds: typing.List[Equation] = []
+        self.b: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.B: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.B_inv: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.C: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.y_k: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.basis_column_list: typing.List[int] = []
+        self.var_sorted_list: typing.List[str] = []
+        self.is_minimum: bool = True
+        self.has_identity: bool = False
+        self.var_list: typing.List[str] = []
+        self.basis_is_identity: bool = False
+        self.k: int = 0
+        self.r: int = 0
+        self.w: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.C_b: np.ndarray[typing.Any, np.dtype[np.float32]]
+        self.zj_cj: np.ndarray[typing.Any, np.dtype[np.float32]]
+        with open(argparser.args.out, encoding="utf-8", mode="w"):
+            pass
+
+
+def print_matrix(mat: np.ndarray[typing.Any, np.dtype[np.float32]]):
+    m: int = mat.shape[0]
+    n: int = mat.shape[1]
+    for i in range(m):
+        for j in range(n):
+            print(mat[i][j])
+        print()
+
+
+def write_template_head(path: str, lp_problem: LP_problem):
+    environment = jinja2.Environment(
+        autoescape=True, loader=jinja2.FileSystemLoader(".")
+    )
+    template = environment.get_template("./result_head.jinja2")
+    temp_head = template.render({"lp_problem": lp_problem})
+    with open(path, encoding="utf-8", mode="a+") as out_file:
+        out_file.write(temp_head)
+
+
+def write_round_result(path: str, lp_problem: LP_problem):
+    """Print the content we have into a file."""
+    environment = jinja2.Environment(
+        autoescape=True, loader=jinja2.FileSystemLoader(".")
+    )
+    environment.globals["print_matrix"] = print_matrix
+    environment.globals["lp_problem"] = lp_problem
+    template = environment.get_template("result_template.jinja2")
+    round_result = template.render({"lp_problem": lp_problem})
+    with open(path, encoding="utf-8", mode="a+") as out_file:
+        out_file.write(round_result)
+
+
+def write_template_tail(path: str, lp_problem: LP_problem, result: float):
+    """Print the content we have into a file."""
+    environment = jinja2.Environment(
+        autoescape=True, loader=jinja2.FileSystemLoader(".")
+    )
+    template = environment.get_template("./result_tail.jinja2")
+    temp_tail = template.render({"lp_problem": lp_problem, "result": result})
+    with open(path, encoding="utf-8", mode="a+") as out_file:
+        out_file.write(temp_tail)
+
+
+def read_csv_equs(argparser: Argparser):
+    """Read in a CSV file and convert it to the common format"""
+    with open(argparser.args.csv, newline="", encoding="utf-8") as csvfile:
+        reader = csv.reader(
+            csvfile, delimiter=argparser.args.delim, quotechar="|"
+        )
+        for row in reader:
+            print(row)
 
 
 @typing.no_type_check
@@ -422,25 +508,14 @@ def build_abc(
     return A, b, C, var_sorted_list
 
 
-def construct_lp_problem(
-    equs: typing.List[Equation],
-    verbose: bool,
-    slack: str,
-    is_minimum: bool,
-    aux_var_name: str,
-) -> typing.Tuple[
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    np.ndarray[typing.Any, np.dtype[np.float32]],
-    typing.List[Equation],
-    Equation,
-    typing.List[str],
-    typing.Dict[str, bool],
-    bool,
-    typing.List[int],
-]:
+def construct_lp_problem(lp_problem: LP_problem, argparser: Argparser) -> None:
     """Construct the LP problem."""
+    verbose = argparser.args.verbose
+    slack = argparser.args.slack
+    is_minimum = argparser.args.min
+    aux_var_name = argparser.args.aux
+    equs = lp_problem.equs
+
     var_list: typing.Dict[str, bool] = {}
     var_sorted_list: typing.List[str] = []
     slack_counter: int = 0
@@ -490,6 +565,18 @@ def construct_lp_problem(
 
     # we will always have an identity basis
     B = np.identity(m, dtype=np.float32)
+
+    lp_problem.A = A
+    lp_problem.b = b
+    lp_problem.B = B
+    lp_problem.C = C
+    lp_problem.equs = equs
+    lp_problem.cost_equ = cost_equ
+    lp_problem.A = A
+    lp_problem.var_sorted_list = var_sorted_list
+    lp_problem.var_llist = var_list
+    lp_problem.has_identity = has_identity
+    lp_problem.basis_column_list = col_list_list
 
     return (
         A,
@@ -859,16 +946,18 @@ def calculate_optimal(
 
 
 def solve_normal_simplex(
-    A,
-    b,
-    C,
-    B: np.ndarray[typing.Any, np.dtype[np.float32]],
-    basis_is_identity: bool,
-    basis_col_list: typing.List,
-    var_sorted_list: typing.List[str],
+    lp_problem: LP_problem,
     argparser: Argparser,
 ) -> None:
     """Solve using the normal simplex method."""
+    A = lp_problem.A
+    b = lp_problem.b
+    C = lp_problem.C
+    B = lp_problem.B
+    basis_is_identity = lp_problem.basis_is_identity
+    basis_col_list = lp_problem.basis_column_list
+    var_sorted_list = lp_problem.var_sorted_list
+
     verbose: bool = argparser.args.verbose
     round_count: int = 0
     while True:
@@ -890,22 +979,20 @@ def solve_normal_simplex(
         if argparser.args.min:
             if extrmem_zj_cj < 0:
                 # we are done
-                print(
-                    "optimal min is:",
-                    calculate_optimal(
-                        b, B_inv, C_b, basis_col_list, var_sorted_list
-                    ),
+                opt: float = calculate_optimal(
+                    b, B_inv, C_b, basis_col_list, var_sorted_list
                 )
+                print("optimal min is:", opt)
+                write_template_tail(argparser.args.out, lp_problem, opt)
                 break
         else:
             if extrmem_zj_cj > 0:
                 # we are done
-                print(
-                    "optimal max is:",
-                    calculate_optimal(
-                        b, B_inv, C_b, basis_col_list, var_sorted_list
-                    ),
+                opt = calculate_optimal(
+                    b, B_inv, C_b, basis_col_list, var_sorted_list
                 )
+                print("optimal max is:", opt)
+                write_template_tail(argparser.args.out, lp_problem, opt)
                 break
 
         y_k = np.dot(B_inv, A[:, k : k + 1])
@@ -934,37 +1021,29 @@ def solve_normal_simplex(
             print("too many iterations.")
             break
 
+        lp_problem.A = A
+        lp_problem.B = B
+        lp_problem.y_k = y_k
+        lp_problem.B_inv = B_inv
+        lp_problem.r = r
+        lp_problem.k = k
+        lp_problem.b = b
+        lp_problem.w = w
+        lp_problem.C_b = C_b
+        lp_problem.zj_cj = objectives
+        write_round_result(argparser.args.out, lp_problem)
+
 
 def dsimplex() -> None:
     """The entry point for the module."""
     argparser = Argparser()
-    verbose = argparser.args.verbose
-    equs = parse_equations(argparser.args.equs, argparser.args.debug)
-    (
-        A,
-        b,
-        B,
-        C,
-        equs,
-        _,
-        var_sorted_list,
-        _,
-        basis_is_identity,
-        basis_col_list,
-    ) = construct_lp_problem(
-        equs,
-        verbose,
-        argparser.args.slack,
-        argparser.args.min,
-        argparser.args.aux,
+    lp_problem = LP_problem(argparser)
+    lp_problem.equs = parse_equations(
+        argparser.args.equs, argparser.args.debug
     )
+    construct_lp_problem(lp_problem, argparser)
+    write_template_head(argparser.args.out, lp_problem)
     solve_normal_simplex(
-        A,
-        b,
-        C,
-        B,
-        basis_is_identity,
-        basis_col_list,
-        var_sorted_list,
+        lp_problem,
         argparser,
     )
