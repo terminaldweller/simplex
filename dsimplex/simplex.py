@@ -2,6 +2,7 @@
 
 import argparse
 import ast
+import copy
 import csv
 import dataclasses
 import logging
@@ -38,7 +39,7 @@ class Argparser:  # pylint: disable=too-few-public-methods
             "-l",
             type=str,
             help="the separator for the csv file",
-            default=False,
+            default=",",
         )
         parser.add_argument(
             "--slack",
@@ -119,6 +120,7 @@ class LP_problem:
         self.equs: typing.List[Equation] = []
         self.cost_equ: typing.List[Equation] = []
         self.binds: typing.List[Equation] = []
+        self.A: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.b: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.B: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.B_inv: np.ndarray[typing.Any, np.dtype[np.float32]]
@@ -180,16 +182,6 @@ def write_template_tail(path: str, lp_problem: LP_problem, result: float):
     temp_tail = template.render({"lp_problem": lp_problem, "result": result})
     with open(path, encoding="utf-8", mode="a+") as out_file:
         out_file.write(temp_tail)
-
-
-def read_csv_equs(argparser: Argparser):
-    """Read in a CSV file and convert it to the common format"""
-    with open(argparser.args.csv, newline="", encoding="utf-8") as csvfile:
-        reader = csv.reader(
-            csvfile, delimiter=argparser.args.delim, quotechar="|"
-        )
-        for row in reader:
-            print(row)
 
 
 @typing.no_type_check
@@ -320,7 +312,7 @@ def expr_visitor(
     return None, equ
 
 
-def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
+def parse_equ_py(equ_file: str, debug: bool) -> typing.List[Equation]:
     """Parses the equations as pyithon expressions."""
     equs = []
     with open(equ_file, encoding="utf-8") as equ_expr:
@@ -344,6 +336,39 @@ def parse_equations(equ_file: str, debug: bool) -> typing.List[Equation]:
             print(equ)
 
     return equs
+
+
+def parse_equ_csv(csv_file: str, delim: str) -> typing.List[Equation]:
+    """Read in a CSV file and convert it to the common format"""
+    equ_list = []
+    equ = Equation({}, "", 0.0)
+    with open(csv_file, newline="", encoding="utf-8") as csvfile:
+        reader = csv.reader(csvfile, delimiter=delim, quotechar="|")
+        names = next(reader)
+        for row in reader:
+            print(row)
+            if row[-1] != "":
+                equ.rhs = float(row[-1])
+            if row[-2] != "":
+                equ.operand = row[-2]
+            for i, v in enumerate(row[:-2]):
+                if v != "":
+                    equ.vars_mults[names[i]] = float(v)
+            equ_list.append(copy.deepcopy(equ))
+            equ.operand = ""
+            equ.vars_mults = {}
+            equ.rhs = 0.0
+
+    return equ_list
+
+
+def parse_equ(argparser: Argparser) -> typing.List[Equation]:
+    """Driver for the equation parsers"""
+    if argparser.args.equs:
+        return parse_equ_py(argparser.args.equs, argparser.args.debug)
+    if argparser.args.csv:
+        return parse_equ_csv(argparser.args.csv, argparser.args.delim)
+    return []
 
 
 def add_slack_vars(
@@ -542,7 +567,7 @@ def construct_lp_problem(lp_problem: LP_problem, argparser: Argparser) -> None:
         m_zero: float = calculate_big_m_zero(A, b, C)
         print("m_zero:", m_zero)
         ones_column_list = get_ones(A)
-        print("ones_column_list:\n", ones_column_list)
+        # print("ones_column_list:\n", ones_column_list)
         build_identity(
             A,
             equs,
@@ -626,7 +651,7 @@ def find_identity(
         ones_count = 0
         last_one_row = 0
 
-    print("ones:", ones)
+    # print("ones:", ones)
     if ones == (m * (m + 1)) / 2:
         return True, col_list
     return False, col_list
@@ -950,6 +975,7 @@ def solve_normal_simplex(
     argparser: Argparser,
 ) -> None:
     """Solve using the normal simplex method."""
+    write_template_head(argparser.args.out, lp_problem)
     A = lp_problem.A
     b = lp_problem.b
     C = lp_problem.C
@@ -1038,11 +1064,14 @@ def dsimplex() -> None:
     """The entry point for the module."""
     argparser = Argparser()
     lp_problem = LP_problem(argparser)
-    lp_problem.equs = parse_equations(
-        argparser.args.equs, argparser.args.debug
-    )
+
+    lp_problem.equs = parse_equ(argparser)
+    if len(lp_problem.equs) == 0:
+        print("could not parse the given equations")
+        sys.exit(1)
+
     construct_lp_problem(lp_problem, argparser)
-    write_template_head(argparser.args.out, lp_problem)
+
     solve_normal_simplex(
         lp_problem,
         argparser,
