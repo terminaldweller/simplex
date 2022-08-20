@@ -14,7 +14,10 @@
     <h1>
       <a>Equations:</a>
       <br/>
-      <a>{{ lp_problem.equs }}<a/>
+      {% for equ in lp_problem.equs %}
+        <pre>{{ equ | prettify_equs }}<pre/>
+        <br/>
+      {% endfor %}
       <br/>
       <a>Is this a minimization problem?<a/>
       <br/>
@@ -22,11 +25,14 @@
       <br/>
       <a>The Cost Function:</a>
       <br/>
-      <a>{{ lp_problem.cost_equ }}<a/>
+      <a>{{ lp_problem.cost_equ | prettify_equs }}<a/>
       <br/>
       <a>The binds:</a>
       <br/>
-      <a>{{ lp_problem.binds }}<a/>
+      {% for bind in lp_problem.binds %}
+        <pre>{{ bind | prettify_equs }}<pre/>
+        <br/>
+      {% endfor %}
       <br/>
       <a>sorted_var_list:</a>
       <br/>

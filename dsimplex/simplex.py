@@ -1,4 +1,4 @@
-"""python simplex implementation"""
+"""Yet another python simplex implementation"""
 
 import argparse
 import ast
@@ -138,32 +138,24 @@ class LP_problem:
         self.C_b: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.zj_cj: np.ndarray[typing.Any, np.dtype[np.float32]]
 
-        self.A_tab: str = ""
-        self.b_tab: str = ""
-        self.B_tab: str = ""
-        self.B_inv_tab: str = ""
-        self.C_tab: str = ""
-        self.y_k_tab: str = ""
-        self.w_tab: str = ""
-        self.C_b_tab: str = ""
-        self.zj_cj_tab: str = ""
         with open(argparser.args.out, encoding="utf-8", mode="w"):
             pass
 
-    # def tabularize_all(self):
-    #     self.A_tab = tabularize_matrix(self.A)
-    #     self.b_tab = tabularize_matrix(self.b)
-    #     self.B_tab = tabularize_matrix(self.B)
-    #     self.B_inv_tab = tabularize_matrix(self.B_inv)
-    #     self.C_tab = tabularize_matrix(self.C)
-    #     self.y_k_tab = tabularize_matrix(self.y_k)
-    #     self.w_tab = tabularize_matrix(self.w)
-    #     self.C_b_tab = tabularize_matrix(self.C)
-    #     self.zj_cj_tab = tabularize_matrix(self.zj_cj)
+
+def prettify_equs(equ: Equation) -> str:
+    """A custom jinja filter that pretty-prints the equations."""
+    equ_stringified: str = ""
+    print(equ)
+    for k, v in equ.vars_mults.items():
+        equ_stringified += k + "*" + repr(v) + " "
+    equ_stringified += equ.operand + " " + repr(equ.rhs)
+    return equ_stringified
 
 
-def tabularize_matrix(mat: np.ndarray[typing.Any, np.dtype[np.float32]]):
-    """A custom jinja filter that returns a tabularized"""
+def tabularize_matrix(
+    mat: np.ndarray[typing.Any, np.dtype[np.float32]]
+) -> str:
+    """A custom jinja filter that returns a tabularized."""
     m: int = mat.shape[0]
     n: int = mat.shape[1]
     result: str = "[ \n"
@@ -181,6 +173,7 @@ def write_template_head(path: str, lp_problem: LP_problem):
     environment = jinja2.Environment(
         autoescape=True, loader=jinja2.FileSystemLoader(".")
     )
+    environment.filters["prettify_equs"] = prettify_equs
     template = environment.get_template("./result_head.jinja2")
     temp_head = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
@@ -190,7 +183,7 @@ def write_template_head(path: str, lp_problem: LP_problem):
 def write_round_result(path: str, lp_problem: LP_problem):
     """Print the content we have into a file."""
     environment = jinja2.Environment(
-        autoescape=False, loader=jinja2.FileSystemLoader(".")
+        autoescape=True, loader=jinja2.FileSystemLoader(".")
     )
     environment.filters["tabularize_matrix"] = tabularize_matrix
     template = environment.get_template("result_template.jinja2")
@@ -1072,7 +1065,6 @@ def solve_normal_simplex(
         lp_problem.w = w
         lp_problem.C_b = C_b
         lp_problem.zj_cj = objectives
-        # lp_problem.tabularize_all()
         write_round_result(argparser.args.out, lp_problem)
 
 
