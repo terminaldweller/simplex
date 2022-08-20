@@ -118,7 +118,7 @@ class LP_problem:
 
     def __init__(self, argparser: Argparser):
         self.equs: typing.List[Equation] = []
-        self.cost_equ: typing.List[Equation] = []
+        self.cost_equ: Equation = Equation({}, "", 0.0)
         self.binds: typing.List[Equation] = []
         self.A: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.b: np.ndarray[typing.Any, np.dtype[np.float32]]
@@ -130,27 +130,54 @@ class LP_problem:
         self.var_sorted_list: typing.List[str] = []
         self.is_minimum: bool = True
         self.has_identity: bool = False
-        self.var_list: typing.List[str] = []
+        self.var_list: typing.Dict[str, bool] = {}
         self.basis_is_identity: bool = False
         self.k: int = 0
         self.r: int = 0
         self.w: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.C_b: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.zj_cj: np.ndarray[typing.Any, np.dtype[np.float32]]
+
+        self.A_tab: str = ""
+        self.b_tab: str = ""
+        self.B_tab: str = ""
+        self.B_inv_tab: str = ""
+        self.C_tab: str = ""
+        self.y_k_tab: str = ""
+        self.w_tab: str = ""
+        self.C_b_tab: str = ""
+        self.zj_cj_tab: str = ""
         with open(argparser.args.out, encoding="utf-8", mode="w"):
             pass
 
+    # def tabularize_all(self):
+    #     self.A_tab = tabularize_matrix(self.A)
+    #     self.b_tab = tabularize_matrix(self.b)
+    #     self.B_tab = tabularize_matrix(self.B)
+    #     self.B_inv_tab = tabularize_matrix(self.B_inv)
+    #     self.C_tab = tabularize_matrix(self.C)
+    #     self.y_k_tab = tabularize_matrix(self.y_k)
+    #     self.w_tab = tabularize_matrix(self.w)
+    #     self.C_b_tab = tabularize_matrix(self.C)
+    #     self.zj_cj_tab = tabularize_matrix(self.zj_cj)
 
-def print_matrix(mat: np.ndarray[typing.Any, np.dtype[np.float32]]):
+
+def tabularize_matrix(mat: np.ndarray[typing.Any, np.dtype[np.float32]]):
+    """A custom jinja filter that returns a tabularized"""
     m: int = mat.shape[0]
     n: int = mat.shape[1]
+    result: str = "[ \n"
     for i in range(m):
         for j in range(n):
-            print(mat[i][j])
-        print()
+            result += repr(mat[i][j]).ljust(8, " ")
+        result += "\n"
+    result += " ]"
+
+    return result
 
 
 def write_template_head(path: str, lp_problem: LP_problem):
+    """Write the head of the template to a file."""
     environment = jinja2.Environment(
         autoescape=True, loader=jinja2.FileSystemLoader(".")
     )
@@ -163,10 +190,9 @@ def write_template_head(path: str, lp_problem: LP_problem):
 def write_round_result(path: str, lp_problem: LP_problem):
     """Print the content we have into a file."""
     environment = jinja2.Environment(
-        autoescape=True, loader=jinja2.FileSystemLoader(".")
+        autoescape=False, loader=jinja2.FileSystemLoader(".")
     )
-    environment.globals["print_matrix"] = print_matrix
-    environment.globals["lp_problem"] = lp_problem
+    environment.filters["tabularize_matrix"] = tabularize_matrix
     template = environment.get_template("result_template.jinja2")
     round_result = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
@@ -545,7 +571,7 @@ def construct_lp_problem(lp_problem: LP_problem, argparser: Argparser) -> None:
     var_sorted_list: typing.List[str] = []
     slack_counter: int = 0
 
-    equs, cost_equ, _, slack_counter, var_list = add_slack_vars(
+    equs, cost_equ, binds, slack_counter, var_list = add_slack_vars(
         equs, slack, verbose
     )
 
@@ -599,22 +625,10 @@ def construct_lp_problem(lp_problem: LP_problem, argparser: Argparser) -> None:
     lp_problem.cost_equ = cost_equ
     lp_problem.A = A
     lp_problem.var_sorted_list = var_sorted_list
-    lp_problem.var_llist = var_list
+    lp_problem.var_list = var_list
     lp_problem.has_identity = has_identity
     lp_problem.basis_column_list = col_list_list
-
-    return (
-        A,
-        b,
-        B,
-        C,
-        equs,
-        cost_equ,
-        var_sorted_list,
-        var_list,
-        has_identity,
-        col_list_list,
-    )
+    lp_problem.binds = binds
 
 
 # @nb.jit(nopython=True, cache=True)
@@ -975,6 +989,7 @@ def solve_normal_simplex(
     argparser: Argparser,
 ) -> None:
     """Solve using the normal simplex method."""
+    # lp_problem.tabularize_all()
     write_template_head(argparser.args.out, lp_problem)
     A = lp_problem.A
     b = lp_problem.b
@@ -1057,6 +1072,7 @@ def solve_normal_simplex(
         lp_problem.w = w
         lp_problem.C_b = C_b
         lp_problem.zj_cj = objectives
+        # lp_problem.tabularize_all()
         write_round_result(argparser.args.out, lp_problem)
 
 
