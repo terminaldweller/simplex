@@ -9,10 +9,10 @@ import logging
 import sys
 import typing
 
+import numpy as np
 import jinja2
 
 # import numba as nb  # type:ignore
-import numpy as np
 
 
 class Argparser:  # pylint: disable=too-few-public-methods
@@ -171,7 +171,7 @@ def tabularize_matrix(
 def write_template_head(path: str, lp_problem: LP_problem):
     """Write the head of the template to a file."""
     environment = jinja2.Environment(
-        autoescape=True, loader=jinja2.FileSystemLoader(".")
+        autoescape=True, loader=jinja2.FileSystemLoader("./dsimplex")
     )
     environment.filters["prettify_equs"] = prettify_equs
     template = environment.get_template("./result_head.jinja2")
@@ -183,7 +183,7 @@ def write_template_head(path: str, lp_problem: LP_problem):
 def write_round_result(path: str, lp_problem: LP_problem):
     """Print the content we have into a file."""
     environment = jinja2.Environment(
-        autoescape=True, loader=jinja2.FileSystemLoader(".")
+        autoescape=True, loader=jinja2.FileSystemLoader("./dsimplex")
     )
     environment.filters["tabularize_matrix"] = tabularize_matrix
     template = environment.get_template("result_template.jinja2")
@@ -195,7 +195,7 @@ def write_round_result(path: str, lp_problem: LP_problem):
 def write_template_tail(path: str, lp_problem: LP_problem, result: float):
     """Print the content we have into a file."""
     environment = jinja2.Environment(
-        autoescape=True, loader=jinja2.FileSystemLoader(".")
+        autoescape=True, loader=jinja2.FileSystemLoader("./dsimplex")
     )
     template = environment.get_template("./result_tail.jinja2")
     temp_tail = template.render({"lp_problem": lp_problem, "result": result})
