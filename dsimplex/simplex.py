@@ -1,6 +1,5 @@
 """Yet another python simplex implementation"""
 
-import argparse
 import ast
 import copy
 import csv
@@ -9,99 +8,12 @@ import logging
 import sys
 import typing
 
-import numpy as np
 import jinja2
+import numpy as np
+
+from .args import Argparser
 
 # import numba as nb  # type:ignore
-
-
-class Argparser:  # pylint: disable=too-few-public-methods
-    """Argparser class."""
-
-    def __init__(self):
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "--equs",
-            "-e",
-            type=str,
-            help="the path to the file containing the equations",
-            default=False,
-        )
-        parser.add_argument(
-            "--csv",
-            "-c",
-            type=str,
-            help="the path to the CSV file containing the problem",
-            default=False,
-        )
-        parser.add_argument(
-            "--delim",
-            "-l",
-            type=str,
-            help="the separator for the csv file",
-            default=",",
-        )
-        parser.add_argument(
-            "--slack",
-            "-s",
-            type=str,
-            help="slack variable base name, names are creted"
-            "by adding a number to the string",
-            default="s",
-        )
-        parser.add_argument(
-            "--aux",
-            "-a",
-            type=str,
-            help="aux variable base name, names are creted"
-            "by adding a number to the string",
-            default="xa",
-        )
-        parser.add_argument(
-            "--iter",
-            "-i",
-            type=int,
-            help="maximum number of iterations",
-            default=50,
-        )
-        parser.add_argument(
-            "--min",
-            "-m",
-            action="store_true",
-            help="determines whether its a minimization problem."
-            "if not, its a maximization problem",
-            default=False,
-        )
-        parser.add_argument(
-            "--verbose",
-            "-v",
-            action="store_true",
-            help="whether to print output verbosely",
-            default=False,
-        )
-        parser.add_argument(
-            "--debug",
-            "-d",
-            action="store_true",
-            help="whether to print debug info",
-            default=False,
-        )
-        parser.add_argument(
-            "--out",
-            "-o",
-            action="store_true",
-            help="path to the output file",
-            default="./lp_out.html",
-        )
-        # TODO- not being used right now
-        parser.add_argument(
-            "--numba",
-            "-n",
-            action="store_true",
-            help="whether to print debug info",
-            default=False,
-        )
-        self.args = parser.parse_args()
 
 
 @dataclasses.dataclass
@@ -113,7 +25,8 @@ class Equation:
     rhs: float
 
 
-class LP_problem:
+# pylint: disable=too-few-public-methods
+class LP_Problem:  # pylint: disable=too-many-instance-attributes
     """This class holds the information for an LP problem"""
 
     def __init__(self, argparser: Argparser):
@@ -168,7 +81,7 @@ def tabularize_matrix(
     return result
 
 
-def write_template_head(path: str, lp_problem: LP_problem):
+def write_template_head(path: str, lp_problem: LP_Problem):
     """Write the head of the template to a file."""
     environment = jinja2.Environment(
         autoescape=True, loader=jinja2.FileSystemLoader("./dsimplex")
@@ -180,7 +93,7 @@ def write_template_head(path: str, lp_problem: LP_problem):
         out_file.write(temp_head)
 
 
-def write_round_result(path: str, lp_problem: LP_problem):
+def write_round_result(path: str, lp_problem: LP_Problem):
     """Print the content we have into a file."""
     environment = jinja2.Environment(
         autoescape=True, loader=jinja2.FileSystemLoader("./dsimplex")
@@ -192,7 +105,7 @@ def write_round_result(path: str, lp_problem: LP_problem):
         out_file.write(round_result)
 
 
-def write_template_tail(path: str, lp_problem: LP_problem, result: float):
+def write_template_tail(path: str, lp_problem: LP_Problem, result: float):
     """Print the content we have into a file."""
     environment = jinja2.Environment(
         autoescape=True, loader=jinja2.FileSystemLoader("./dsimplex")
@@ -409,7 +322,6 @@ def add_slack_vars(
     for i, equ in enumerate(equs):
         # we assume that b > 0, if not we multiply the equation
         # by -1 and flip the operand accordingly
-        # TODO-test me
         if equ.rhs < 0:
             for j in equ.vars_mults:
                 equ.vars_mults[j] = equ.vars_mults[j] * -1
@@ -552,7 +464,7 @@ def build_abc(
     return A, b, C, var_sorted_list
 
 
-def construct_lp_problem(lp_problem: LP_problem, argparser: Argparser) -> None:
+def construct_lp_problem(lp_problem: LP_Problem, argparser: Argparser) -> None:
     """Construct the LP problem."""
     verbose = argparser.args.verbose
     slack = argparser.args.slack
@@ -658,7 +570,6 @@ def find_identity(
         ones_count = 0
         last_one_row = 0
 
-    # print("ones:", ones)
     if ones == (m * (m + 1)) / 2:
         return True, col_list
     return False, col_list
@@ -679,7 +590,6 @@ def get_ones(
     # bye-bye cache locality
     for j in range(0, n):
         for i in range(0, m):
-            # col_sum += col_sum + A[i, j]
             if A[i, j] == 0:
                 continue
             if A[i, j] == 1:
@@ -691,13 +601,11 @@ def get_ones(
             else:
                 seen_trash = True
                 break
-        # if seen_a_one and col_sum == 1 and not seen_trash:
         if seen_a_one and not seen_trash:
             col_list[one_index] = j
         seen_a_one = False
         seen_trash = False
         one_index = -1
-        # col_sum = 0
 
     return col_list
 
@@ -978,11 +886,10 @@ def calculate_optimal(
 
 
 def solve_normal_simplex(
-    lp_problem: LP_problem,
+    lp_problem: LP_Problem,
     argparser: Argparser,
-) -> None:
+) -> typing.Optional[float]:
     """Solve using the normal simplex method."""
-    # lp_problem.tabularize_all()
     write_template_head(argparser.args.out, lp_problem)
     A = lp_problem.A
     b = lp_problem.b
@@ -1018,7 +925,7 @@ def solve_normal_simplex(
                 )
                 print("optimal min is:", opt)
                 write_template_tail(argparser.args.out, lp_problem, opt)
-                break
+                return opt
         else:
             if extrmem_zj_cj > 0:
                 # we are done
@@ -1027,7 +934,7 @@ def solve_normal_simplex(
                 )
                 print("optimal max is:", opt)
                 write_template_tail(argparser.args.out, lp_problem, opt)
-                break
+                return opt
 
         y_k = np.dot(B_inv, A[:, k : k + 1])
         print("y_k:\n", y_k)
@@ -1035,7 +942,7 @@ def solve_normal_simplex(
             # we are done
             # TODO- print the direction along which the value is unbounded
             print("unbounded optimal value.")
-            break
+            return None
         print(y_k)
         r, B = determine_leaving(
             k, A, B, B_inv, b, y_k, basis_col_list, basis_is_identity, verbose
@@ -1053,7 +960,7 @@ def solve_normal_simplex(
         print("-------------------------------------------------")
         if round_count > argparser.args.iter:
             print("too many iterations.")
-            break
+            return None
 
         lp_problem.A = A
         lp_problem.B = B
@@ -1068,10 +975,10 @@ def solve_normal_simplex(
         write_round_result(argparser.args.out, lp_problem)
 
 
-def dsimplex() -> None:
+def dsimplex() -> typing.Optional[float]:
     """The entry point for the module."""
     argparser = Argparser()
-    lp_problem = LP_problem(argparser)
+    lp_problem = LP_Problem(argparser)
 
     lp_problem.equs = parse_equ(argparser)
     if len(lp_problem.equs) == 0:
@@ -1080,7 +987,24 @@ def dsimplex() -> None:
 
     construct_lp_problem(lp_problem, argparser)
 
-    solve_normal_simplex(
+    return solve_normal_simplex(
+        lp_problem,
+        argparser,
+    )
+
+
+def dsimplex_gui(argparser: Argparser) -> typing.Optional[float]:
+    """The entry point for the gui."""
+    lp_problem = LP_Problem(argparser)
+
+    lp_problem.equs = parse_equ(argparser)
+    if len(lp_problem.equs) == 0:
+        print("could not parse the given equations")
+        sys.exit(1)
+
+    construct_lp_problem(lp_problem, argparser)
+
+    return solve_normal_simplex(
         lp_problem,
         argparser,
     )
