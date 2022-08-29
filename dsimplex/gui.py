@@ -16,6 +16,7 @@ class DsimplexGui:
         self.csv_file_path: str = ""
         self.argparse: Argparser = Argparser()
         self.mock_cli: str = ""
+        self.html_report_dir: str = ""
 
         self.window = tk.Tk()
         self.window.title("dsimplex")
@@ -72,22 +73,33 @@ class DsimplexGui:
 
         self.button_run = tk.Button(
             text="run",
-            width=25,
-            height=5,
+            width=10,
+            height=2,
             master=self.frame_left,
             command=self.run_button_cb,
         )
 
         self.button_browse = tk.Button(
-            text="browse",
-            width=25,
-            height=5,
+            text="select CSV file",
+            width=10,
+            height=2,
             command=self.open_file_browser_cb,
-            master=self.frame_right,
+            master=self.frame_left,
+        )
+
+        self.button_html_report_dir = tk.Button(
+            text="HTML report path",
+            width=10,
+            height=2,
+            master=self.frame_left,
+            command=self.open_output_browser_cb,
         )
 
         self.button_browse.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-        self.button_run.grid(row=1, column=0, sticky="ew", padx=5)
+        self.button_run.grid(row=0, column=4, sticky="ew", padx=5)
+        self.button_html_report_dir.grid(
+            row=0, column=1, sticky="ew", padx=5, pady=5
+        )
 
         self.text = tk.Text()
         self.text.pack()
@@ -105,12 +117,33 @@ class DsimplexGui:
             # csv_file.close()
             # self.text.insert(tk.END, content)
 
+    def open_output_browser_cb(self) -> None:
+        """Callabck for the button to select the html report dir."""
+        html_dir = tk.filedialog.askdirectory()
+        if html_dir:
+            self.html_report_dir = os.path.abspath(html_dir)
+
     def run_button_cb(self) -> None:
         """Callback for the run button."""
+        if self.csv_file_path == "":
+            return
         self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
         self.mock_cli += " --csv " + self.csv_file_path + " "
         if self.is_minimization:
             self.mock_cli += " -m "
+
+        if self.html_report_dir != "":
+            self.mock_cli += (
+                " --out "
+                + self.html_report_dir
+                + "/dsimplex_report.html"
+                + " "
+            )
+        else:
+            self.mock_cli += (
+                " --out " + os.getcwd() + "/dsimplex_report.html" + " "
+            )
+
         print(self.mock_cli)
         self.argparse.parse(self.mock_cli.split())
         result = dsimplex_gui(self.argparse)

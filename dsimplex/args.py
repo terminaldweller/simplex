@@ -77,7 +77,7 @@ class Argparser:  # pylint: disable=too-few-public-methods
         self.parser.add_argument(
             "--out",
             "-o",
-            action="store_true",
+            type=str,
             help="path to the output file",
             default="./lp_out.html",
         )
