@@ -1008,3 +1008,54 @@ def dsimplex_gui(argparser: Argparser) -> typing.Optional[float]:
         lp_problem,
         argparser,
     )
+
+
+def dsimplex_gui_loop(
+    argparser: Argparser, equs: typing.List[Equation]
+) -> typing.Optional[float]:
+    """The entry point for the g ui"""
+    lp_problem = LP_Problem(argparser)
+
+    lp_problem.equs = equs
+    if len(lp_problem.equs) == 0:
+        print("could not parse the given equations")
+        sys.exit(1)
+
+    construct_lp_problem(lp_problem, argparser)
+
+    return solve_normal_simplex(
+        lp_problem,
+        argparser,
+    )
+
+
+def parse_equ_csv_loop(
+    argparser: Argparser,
+) -> typing.List[typing.Optional[float]]:
+    """Solves in a loop."""
+    equ_list: typing.List = []
+    equ = Equation({}, "", 0.0)
+    result: typing.List = []
+    with open(argparser.args.csv, newline="", encoding="utf-8") as csvfile:
+        reader = csv.reader(
+            csvfile, delimiter=argparser.args.delim, quotechar="|"
+        )
+        names = next(reader)
+        for row in reader:
+            if row[0] == "null":
+                result.append(dsimplex_gui_loop(argparser, equ_list))
+                equ_list = []
+                continue
+            if row[-1] != "":
+                equ.rhs = float(row[-1])
+            if row[-2] != "":
+                equ.operand = row[-2]
+            for i, v in enumerate(row[:-2]):
+                if v != "":
+                    equ.vars_mults[names[i]] = float(v)
+            equ_list.append(copy.deepcopy(equ))
+            equ.operand = ""
+            equ.vars_mults = {}
+            equ.rhs = 0.0
+
+        return result

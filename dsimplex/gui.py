@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """dsimplex gui"""
 
+import os
 import tkinter as tk
 import tkinter.filedialog
-import os
+
 from .args import Argparser
-from .simplex import dsimplex_gui
+from .simplex import dsimplex_gui, parse_equ_csv_loop
 
 
 class DsimplexGui:
@@ -125,30 +126,36 @@ class DsimplexGui:
 
     def run_button_cb(self) -> None:
         """Callback for the run button."""
-        if self.csv_file_path == "":
-            return
-        self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
-        self.mock_cli += " --csv " + self.csv_file_path + " "
-        if self.is_minimization:
-            self.mock_cli += " -m "
+        try:
+            if self.csv_file_path == "":
+                return
+            self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
+            self.mock_cli += " --csv " + self.csv_file_path + " "
+            if self.is_minimization:
+                self.mock_cli += " -m "
 
-        if self.html_report_dir != "":
-            self.mock_cli += (
-                " --out "
-                + self.html_report_dir
-                + "/dsimplex_report.html"
-                + " "
-            )
-        else:
-            self.mock_cli += (
-                " --out " + os.getcwd() + "/dsimplex_report.html" + " "
-            )
+            if self.html_report_dir != "":
+                self.mock_cli += (
+                    " --out "
+                    + self.html_report_dir
+                    + "/dsimplex_report.html"
+                    + " "
+                )
+            else:
+                self.mock_cli += (
+                    " --out " + os.getcwd() + "/dsimplex_report.html" + " "
+                )
 
-        print(self.mock_cli)
-        self.argparse.parse(self.mock_cli.split())
-        result = dsimplex_gui(self.argparse)
-        self.text.delete("1.0", tk.END)
-        self.text.insert(tk.END, repr(result))
+            print(self.mock_cli)
+            self.argparse.parse(self.mock_cli.split())
+            result = parse_equ_csv_loop(self.argparse)
+            print(result)
+            self.text.delete("1.0", tk.END)
+            self.text.insert(tk.END, repr(result))
+        except Exception as e:
+            # we really don't care what the problem is. we just don't
+            # want to exit the gui
+            print(e)
 
     def main_loop(self) -> None:
         """Runs the main loop."""
