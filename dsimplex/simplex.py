@@ -1058,4 +1058,5 @@ def parse_equ_csv_loop(
             equ.vars_mults = {}
             equ.rhs = 0.0
 
+        result.append(dsimplex_gui_loop(argparser, equ_list))
         return result
