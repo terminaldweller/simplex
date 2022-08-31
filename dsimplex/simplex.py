@@ -1046,6 +1046,11 @@ def parse_equ_csv_loop(
                 result.append(dsimplex_gui_loop(argparser, equ_list))
                 equ_list = []
                 continue
+            if not any(row_element.isnumeric() for row_element in row):
+                result.append(dsimplex_gui_loop(argparser, equ_list))
+                equ_list = []
+                names = row
+                continue
             if row[-1] != "":
                 equ.rhs = float(row[-1])
             if row[-2] != "":
