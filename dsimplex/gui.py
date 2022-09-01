@@ -95,12 +95,23 @@ class DsimplexGui:
             command=self.open_help_window,
         )
 
+        self.button_show_report = tk.Button(
+            text="Show Report",
+            width=10,
+            height=2,
+            master=self.frame_left,
+            command=self.show_report_cb,
+        )
+
         self.button_browse.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
         self.button_run.grid(row=0, column=4, sticky="ew", padx=5)
         self.button_html_report_dir.grid(
             row=0, column=1, sticky="ew", padx=5, pady=5
         )
         self.button_help.grid(row=0, column=5, sticky="ew", padx=5, pady=5)
+        self.button_show_report.grid(
+            row=0, column=6, sticky="ew", padx=5, pady=6
+        )
 
         self.text = tk.Text()
         self.text.pack(fill="both", expand=True)
@@ -108,6 +119,25 @@ class DsimplexGui:
 
         self.frame_right.pack()
         self.frame_left.pack()
+
+    def show_report_cb(self) -> None:
+        """Callback for the show report button. displays the report."""
+        report_window = tk.Toplevel()
+        report_window.wm_title("dsimplex report")
+
+        report_path: str = ""
+        if self.html_report_dir != "":
+            report_path = self.html_report_dir + "/dsimplex_report.html"
+        else:
+            report_path = os.getcwd() + "/dsimplex_report.html"
+
+        with open(report_path, encoding="utf-8") as report_file:
+            html_help_content = report_file.read()
+
+            help_label = tk_html_widgets.HTMLScrolledText(report_window)
+            help_label.set_html(html_help_content)
+
+            help_label.pack(fil="both", expand=True)
 
     def open_file_browser_cb(self) -> None:
         """Callback function for the file browser button."""
