@@ -16,7 +16,6 @@ class DsimplexGui:
     """The GUI class."""
 
     def __init__(self) -> None:
-        self.is_minimization: bool = True
         self.csv_file_path: str = ""
         self.argparse: Argparser = Argparser()
         self.mock_cli: str = ""
@@ -24,6 +23,7 @@ class DsimplexGui:
 
         self.window = tk.Tk()
         self.window.title("dsimplex")
+        self.is_minimization: tk.BooleanVar = tk.BooleanVar()
 
         self.window.rowconfigure(0, minsize=800, weight=1)
         self.window.columnconfigure(0, minsize=800, weight=1)
@@ -35,10 +35,7 @@ class DsimplexGui:
         self.frame_right = tk.Frame(relief=tk.GROOVE, borderwidth=3)
 
         self.checkbutton_min = tk.Checkbutton(
-            self.window,
-            text="is minimization:",
-            variable=self.is_minimization,
-            onvalue=True,
+            self.window, text="is minimization:", variable=self.is_minimization
         )
         self.checkbutton_min.pack()
 
@@ -146,7 +143,7 @@ class DsimplexGui:
             self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
             self.mock_cli += " --csv " + self.csv_file_path + " "
             self.mock_cli += " --iter " + self.entry_max_iter.get() + " "
-            if self.is_minimization:
+            if self.is_minimization.get():
                 self.mock_cli += " -m "
 
             if self.html_report_dir != "":
