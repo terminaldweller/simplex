@@ -5,6 +5,9 @@ import os
 import tkinter as tk
 import tkinter.filedialog
 
+import markdown
+import tk_html_widgets
+
 from .args import Argparser
 from .simplex import dsimplex_gui, parse_equ_csv_loop
 
@@ -72,6 +75,12 @@ class DsimplexGui:
         self.entry_csv_delim.insert(tk.END, ",")
         self.entry_csv_delim.pack()
 
+        self.label_max_iter = tk.Label(text="Maximum iterations:")
+        self.label_max_iter.pack()
+        self.entry_max_iter = tk.Entry()
+        self.entry_max_iter.insert(tk.END, "50")
+        self.entry_max_iter.pack()
+
         self.button_run = tk.Button(
             text="run",
             width=10,
@@ -96,14 +105,23 @@ class DsimplexGui:
             command=self.open_output_browser_cb,
         )
 
+        self.button_help = tk.Button(
+            text="Help",
+            width=10,
+            height=2,
+            master=self.frame_left,
+            command=self.open_help_window,
+        )
+
         self.button_browse.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
         self.button_run.grid(row=0, column=4, sticky="ew", padx=5)
         self.button_html_report_dir.grid(
             row=0, column=1, sticky="ew", padx=5, pady=5
         )
+        self.button_help.grid(row=0, column=5, sticky="ew", padx=5, pady=5)
 
         self.text = tk.Text()
-        self.text.pack()
+        self.text.pack(fill="both", expand=True)
         self.text.configure(state="normal")
 
         self.frame_right.pack()
@@ -114,9 +132,21 @@ class DsimplexGui:
         csv_file = tk.filedialog.askopenfile(mode="r")
         if csv_file:
             self.csv_file_path = os.path.abspath(csv_file.name)
-            # content = csv_file.read()
-            # csv_file.close()
-            # self.text.insert(tk.END, content)
+
+    def open_help_window(self):
+        """Callback for the help button."""
+        help_window = tk.Toplevel()
+        help_window.wm_title("dsimplex help")
+
+        with open("README.md", encoding="utf-8") as help_file:
+            md_help_content = help_file.read()
+            html_help_content = markdown.markdown(md_help_content)
+
+            # help_label = tkhtmlview.HTMLScrolledText(help_window)
+            help_label = tk_html_widgets.HTMLScrolledText(help_window)
+            help_label.set_html(html_help_content)
+
+            help_label.pack(fil="both", expand=True)
 
     def open_output_browser_cb(self) -> None:
         """Callabck for the button to select the html report dir."""
@@ -131,6 +161,7 @@ class DsimplexGui:
                 return
             self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
             self.mock_cli += " --csv " + self.csv_file_path + " "
+            self.mock_cli += " --iter " + self.entry_max_iter.get() + " "
             if self.is_minimization:
                 self.mock_cli += " -m "
 

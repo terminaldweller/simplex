@@ -92,6 +92,3 @@ Or you can clone this repo and run it like that:<br/>
 ```sh
 git clone https://github.com/terminaldweller/simplex && cd simplex && poetry install
 ```
-
-## TODO
-* Use numba
