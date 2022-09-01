@@ -4,6 +4,8 @@
 import os
 import tkinter as tk
 import tkinter.filedialog
+import ttkthemes
+from tkinter import ttk
 
 import markdown
 import tk_html_widgets
@@ -21,84 +23,84 @@ class DsimplexGui:
         self.mock_cli: str = ""
         self.html_report_dir: str = ""
 
-        self.window = tk.Tk()
+        # self.window = ttkthemes.ThemedTk(theme="equilux")
+        self.window = ttkthemes.ThemedTk(theme="black")
         self.window.title("dsimplex")
-        self.is_minimization: tk.BooleanVar = tk.BooleanVar()
+        self.window.configure(bg="#444444")
+
+        self.is_minimization: tk.BooleanVar = tk.BooleanVar(
+            self.window, value=True
+        )
 
         self.window.rowconfigure(0, minsize=800, weight=1)
         self.window.columnconfigure(0, minsize=800, weight=1)
 
-        self.label = tk.Label(text="dsimplex", foreground="black")
-        self.label.pack()
+        # self.label = ttk.Label(text="dsimplex", foreground="black")
+        # self.label.pack()
 
-        self.frame_left = tk.Frame(relief=tk.GROOVE, borderwidth=3)
-        self.frame_right = tk.Frame(relief=tk.GROOVE, borderwidth=3)
+        self.frame_left = ttk.Frame(relief=tk.GROOVE, borderwidth=3)
+        self.frame_right = ttk.Frame(relief=tk.GROOVE, borderwidth=3)
 
-        self.checkbutton_min = tk.Checkbutton(
+        self.checkbutton_min = ttk.Checkbutton(
             self.window, text="is minimization:", variable=self.is_minimization
         )
         self.checkbutton_min.pack()
 
-        self.label_aux_var_name = tk.Label(text="auxillary var name:")
+        self.label_aux_var_name = ttk.Label(text="auxillary var name:")
         self.label_aux_var_name.pack()
-        self.entry_aux_var_name = tk.Entry()
+        self.entry_aux_var_name = ttk.Entry()
         self.entry_aux_var_name.insert(tk.END, "xa")
         self.entry_aux_var_name.pack()
 
-        self.label_slack_var_name = tk.Label(text="slack var name:")
+        self.label_slack_var_name = ttk.Label(text="slack var name:")
         self.label_slack_var_name.pack()
-        self.entry_slack_var_name = tk.Entry()
+        self.entry_slack_var_name = ttk.Entry()
         self.entry_slack_var_name.insert(tk.END, "s")
         self.entry_slack_var_name.pack()
 
-        self.label_csv_delim_ = tk.Label(text="CSV delimiter:")
+        self.label_csv_delim_ = ttk.Label(text="CSV delimiter:")
         self.label_csv_delim_.pack()
-        self.entry_csv_delim = tk.Entry()
+        self.entry_csv_delim = ttk.Entry()
         self.entry_csv_delim.insert(tk.END, ",")
         self.entry_csv_delim.pack()
 
-        self.label_max_iter = tk.Label(text="Maximum iterations:")
+        self.label_max_iter = ttk.Label(text="Maximum iterations:")
         self.label_max_iter.pack()
-        self.entry_max_iter = tk.Entry()
+        self.entry_max_iter = ttk.Entry()
         self.entry_max_iter.insert(tk.END, "50")
         self.entry_max_iter.pack()
 
-        self.button_run = tk.Button(
+        self.button_run = ttk.Button(
             text="run",
-            width=10,
-            height=2,
+            width=15,
             master=self.frame_left,
             command=self.run_button_cb,
         )
 
-        self.button_browse = tk.Button(
+        self.button_browse = ttk.Button(
             text="select CSV file",
-            width=10,
-            height=2,
+            width=15,
             command=self.open_file_browser_cb,
             master=self.frame_left,
         )
 
-        self.button_html_report_dir = tk.Button(
+        self.button_html_report_dir = ttk.Button(
             text="HTML report path",
-            width=10,
-            height=2,
+            width=15,
             master=self.frame_left,
             command=self.open_output_browser_cb,
         )
 
-        self.button_help = tk.Button(
+        self.button_help = ttk.Button(
             text="Help",
-            width=10,
-            height=2,
+            width=15,
             master=self.frame_left,
             command=self.open_help_window,
         )
 
-        self.button_show_report = tk.Button(
+        self.button_show_report = ttk.Button(
             text="Show Report",
-            width=10,
-            height=2,
+            width=15,
             master=self.frame_left,
             command=self.show_report_cb,
         )
@@ -114,6 +116,7 @@ class DsimplexGui:
         )
 
         self.text = tk.Text()
+        self.text.configure(bg="#262626", fg="#808080")
         self.text.pack(fill="both", expand=True)
         self.text.configure(state="normal")
 
@@ -173,6 +176,7 @@ class DsimplexGui:
             self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
             self.mock_cli += " --csv " + self.csv_file_path + " "
             self.mock_cli += " --iter " + self.entry_max_iter.get() + " "
+            print("XXX", self.is_minimization.get())
             if self.is_minimization.get():
                 self.mock_cli += " -m "
 
@@ -194,6 +198,7 @@ class DsimplexGui:
             print(result)
             self.text.delete("1.0", tk.END)
             self.text.insert(tk.END, repr(result))
+            self.mock_cli = ""
         except Exception as e:
             # we really don't care what the problem is. we just don't
             # want to exit the gui

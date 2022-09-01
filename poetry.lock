@@ -93,6 +93,17 @@ python-versions = ">=3.4.*"
 Pillow = ">=5.3.0"
 
 [[package]]
+name = "ttkthemes"
+version = "3.2.2"
+description = "A group of themes for the ttk extensions of Tkinter with a Tkinter.Tk wrapper"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[package.dependencies]
+pillow = "*"
+
+[[package]]
 name = "zipp"
 version = "3.8.1"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -107,7 +118,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "c2e9007d8cc8b48c98933ea63f4ba08f5dffce8f14996f88685ceb4a883302ce"
+content-hash = "3121074e6b845653d64d9a15d3352387f64648b9f5c19f1676d1a24fffb583f6"
 
 [metadata.files]
 importlib-metadata = []
@@ -221,4 +232,5 @@ pillow = [
 ]
 scipy = []
 tk-html-widgets = []
+ttkthemes = []
 zipp = []

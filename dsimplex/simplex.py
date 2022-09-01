@@ -979,7 +979,7 @@ def dsimplex() -> typing.Optional[float]:
     lp_problem.equs = parse_equ(argparser)
     if len(lp_problem.equs) == 0:
         print("could not parse the given equations")
-        sys.exit(1)
+        return None
 
     construct_lp_problem(lp_problem, argparser)
 
@@ -996,7 +996,7 @@ def dsimplex_gui(argparser: Argparser) -> typing.Optional[float]:
     lp_problem.equs = parse_equ(argparser)
     if len(lp_problem.equs) == 0:
         print("could not parse the given equations")
-        sys.exit(1)
+        return None
 
     construct_lp_problem(lp_problem, argparser)
 
@@ -1015,7 +1015,7 @@ def dsimplex_gui_loop(
     lp_problem.equs = equs
     if len(lp_problem.equs) == 0:
         print("could not parse the given equations")
-        sys.exit(1)
+        return None
 
     construct_lp_problem(lp_problem, argparser)
 
