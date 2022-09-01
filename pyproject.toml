@@ -19,7 +19,8 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-dsimplex = "dsimplex.simplex:dsimplex"
+dsimplex = ".dsimplex:main"
+dsimplex-gui = ".dsimplex-gui:main:"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"

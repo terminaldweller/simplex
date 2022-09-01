@@ -51,9 +51,6 @@ class LP_Problem:  # pylint: disable=too-many-instance-attributes
         self.C_b: np.ndarray[typing.Any, np.dtype[np.float32]]
         self.zj_cj: np.ndarray[typing.Any, np.dtype[np.float32]]
 
-        with open(argparser.args.out, encoding="utf-8", mode="w"):
-            pass
-
 
 def prettify_equs(equ: Equation) -> str:
     """A custom jinja filter that pretty-prints the equations."""
@@ -498,7 +495,6 @@ def construct_lp_problem(lp_problem: LP_Problem, argparser: Argparser) -> None:
         m_zero: float = calculate_big_m_zero(A, b, C)
         print("m_zero:", m_zero)
         ones_column_list = get_ones(A)
-        # print("ones_column_list:\n", ones_column_list)
         build_identity(
             A,
             equs,

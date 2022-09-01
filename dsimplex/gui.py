@@ -25,12 +25,6 @@ class DsimplexGui:
         self.window = tk.Tk()
         self.window.title("dsimplex")
 
-        # self.aux_var_name: tk.StringVar = tk.StringVar(self.window, value="xa")
-        # self.slack_var_name: tk.StringVar = tk.StringVar(
-        #     self.window, value="s"
-        # )
-        # self.csv_delim: tk.StringVar = tk.StringVar(self.window, value=",")
-
         self.window.rowconfigure(0, minsize=800, weight=1)
         self.window.columnconfigure(0, minsize=800, weight=1)
 
@@ -48,27 +42,18 @@ class DsimplexGui:
         )
         self.checkbutton_min.pack()
 
-        # self.label_aux_var_name = tk.Label(
-        #     text="auxillary var name:", textvariable=self.aux_var_name
-        # )
         self.label_aux_var_name = tk.Label(text="auxillary var name:")
         self.label_aux_var_name.pack()
         self.entry_aux_var_name = tk.Entry()
         self.entry_aux_var_name.insert(tk.END, "xa")
         self.entry_aux_var_name.pack()
 
-        # self.label_slack_var_name = tk.Label(
-        #     text="slack var name:", textvariable=self.slack_var_name
-        # )
         self.label_slack_var_name = tk.Label(text="slack var name:")
         self.label_slack_var_name.pack()
         self.entry_slack_var_name = tk.Entry()
         self.entry_slack_var_name.insert(tk.END, "s")
         self.entry_slack_var_name.pack()
 
-        # self.label_csv_delim_ = tk.Label(
-        #     text="CSV delimiter:", textvariable=self.csv_delim
-        # )
         self.label_csv_delim_ = tk.Label(text="CSV delimiter:")
         self.label_csv_delim_.pack()
         self.entry_csv_delim = tk.Entry()
@@ -142,7 +127,6 @@ class DsimplexGui:
             md_help_content = help_file.read()
             html_help_content = markdown.markdown(md_help_content)
 
-            # help_label = tkhtmlview.HTMLScrolledText(help_window)
             help_label = tk_html_widgets.HTMLScrolledText(help_window)
             help_label.set_html(html_help_content)
 
