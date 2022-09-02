@@ -198,11 +198,12 @@ class DsimplexGui:
             print(result)
             self.text.delete("1.0", tk.END)
             self.text.insert(tk.END, repr(result))
-            self.mock_cli = ""
         except Exception as e:
             # we really don't care what the problem is. we just don't
             # want to exit the gui
             print(e)
+        finally:
+            self.mock_cli = ""
 
     def main_loop(self) -> None:
         """Runs the main loop."""
