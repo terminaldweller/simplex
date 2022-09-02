@@ -86,9 +86,10 @@ def write_template_head(path: str, lp_problem: LP_Problem):
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
     environment.filters["prettify_equs"] = prettify_equs
-    template = environment.get_template(
-        os.path.join(".", "result_head.jinja2")
-    )
+    # template = environment.get_template(
+    #     os.path.join(".", "result_head.jinja2")
+    # )
+    template = environment.get_template(os.path.join("result_head.jinja2"))
     temp_head = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
         out_file.write(temp_head)
@@ -101,9 +102,10 @@ def write_round_result(path: str, lp_problem: LP_Problem):
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
     environment.filters["tabularize_matrix"] = tabularize_matrix
-    template = environment.get_template(
-        os.path.join(".", "result_template.jinja2")
-    )
+    # template = environment.get_template(
+    #     os.path.join(".", "result_template.jinja2")
+    # )
+    template = environment.get_template(os.path.join("result_template.jinja2"))
     round_result = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
         out_file.write(round_result)
@@ -115,9 +117,10 @@ def write_template_tail(path: str, lp_problem: LP_Problem, result: float):
         autoescape=True,
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
-    template = environment.get_template(
-        os.path.join(".", "result_tail.jinja2")
-    )
+    # template = environment.get_template(
+    #     os.path.join(".", "result_tail.jinja2")
+    # )
+    template = environment.get_template(os.path.join("result_tail.jinja2"))
     temp_tail = template.render({"lp_problem": lp_problem, "result": result})
     with open(path, encoding="utf-8", mode="a+") as out_file:
         out_file.write(temp_tail)
