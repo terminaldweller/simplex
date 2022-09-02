@@ -4,11 +4,11 @@
 import os
 import tkinter as tk
 import tkinter.filedialog
-import ttkthemes
 from tkinter import ttk
 
 import markdown
 import tk_html_widgets
+import ttkthemes
 
 from .args import Argparser
 from .simplex import dsimplex_gui, parse_equ_csv_loop
@@ -130,9 +130,11 @@ class DsimplexGui:
 
         report_path: str = ""
         if self.html_report_dir != "":
-            report_path = self.html_report_dir + "/dsimplex_report.html"
+            report_path = os.path.join(
+                self.html_report_dir, "dsimplex_report.html"
+            )
         else:
-            report_path = os.getcwd() + "/dsimplex_report.html"
+            report_path = os.path.join(os.getcwd(), "dsimplex_report.html")
 
         with open(report_path, encoding="utf-8") as report_file:
             html_help_content = report_file.read()
@@ -183,13 +185,16 @@ class DsimplexGui:
             if self.html_report_dir != "":
                 self.mock_cli += (
                     " --out "
-                    + self.html_report_dir
-                    + "/dsimplex_report.html"
+                    + os.path.join(
+                        self.html_report_dir, "dsimplex_report.html"
+                    )
                     + " "
                 )
             else:
                 self.mock_cli += (
-                    " --out " + os.getcwd() + "/dsimplex_report.html" + " "
+                    " --out "
+                    + os.path.join(os.getcwd(), "dsimplex_report.html")
+                    + " "
                 )
 
             print(self.mock_cli)
