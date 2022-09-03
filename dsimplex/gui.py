@@ -23,7 +23,6 @@ class DsimplexGui:
         self.mock_cli: str = ""
         self.html_report_dir: str = ""
 
-        # self.window = ttkthemes.ThemedTk(theme="equilux")
         self.window = ttkthemes.ThemedTk(theme="black")
         self.window.title("dsimplex")
         self.window.configure(bg="#444444")
@@ -34,9 +33,6 @@ class DsimplexGui:
 
         self.window.rowconfigure(0, minsize=800, weight=1)
         self.window.columnconfigure(0, minsize=800, weight=1)
-
-        # self.label = ttk.Label(text="dsimplex", foreground="black")
-        # self.label.pack()
 
         self.frame_left = ttk.Frame(relief=tk.GROOVE, borderwidth=3)
         self.frame_right = ttk.Frame(relief=tk.GROOVE, borderwidth=3)
@@ -123,6 +119,10 @@ class DsimplexGui:
         self.frame_right.pack()
         self.frame_left.pack()
 
+        # FIXME- maybe a label isnt the right widget for an error console.
+        self.console_label = ttk.Label()
+        self.console_label.pack()
+
     def show_report_cb(self) -> None:
         """Callback for the show report button. displays the report."""
         report_window = tk.Toplevel()
@@ -160,6 +160,7 @@ class DsimplexGui:
             html_help_content = markdown.markdown(md_help_content)
 
             help_label = tk_html_widgets.HTMLScrolledText(help_window)
+            help_label.configure(fg="#808080", bg="#262626")
             help_label.set_html(html_help_content)
 
             help_label.pack(fil="both", expand=True)
@@ -178,7 +179,6 @@ class DsimplexGui:
             self.mock_cli += " --delim " + self.entry_csv_delim.get() + " "
             self.mock_cli += " --csv " + self.csv_file_path + " "
             self.mock_cli += " --iter " + self.entry_max_iter.get() + " "
-            print("XXX", self.is_minimization.get())
             if self.is_minimization.get():
                 self.mock_cli += " -m "
 

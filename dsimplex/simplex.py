@@ -86,9 +86,6 @@ def write_template_head(path: str, lp_problem: LP_Problem):
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
     environment.filters["prettify_equs"] = prettify_equs
-    # template = environment.get_template(
-    #     os.path.join(".", "result_head.jinja2")
-    # )
     template = environment.get_template(os.path.join("result_head.jinja2"))
     temp_head = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
@@ -102,9 +99,6 @@ def write_round_result(path: str, lp_problem: LP_Problem):
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
     environment.filters["tabularize_matrix"] = tabularize_matrix
-    # template = environment.get_template(
-    #     os.path.join(".", "result_template.jinja2")
-    # )
     template = environment.get_template(os.path.join("result_template.jinja2"))
     round_result = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
@@ -117,9 +111,6 @@ def write_template_tail(path: str, lp_problem: LP_Problem, result: float):
         autoescape=True,
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
-    # template = environment.get_template(
-    #     os.path.join(".", "result_tail.jinja2")
-    # )
     template = environment.get_template(os.path.join("result_tail.jinja2"))
     temp_tail = template.render({"lp_problem": lp_problem, "result": result})
     with open(path, encoding="utf-8", mode="a+") as out_file:
@@ -717,27 +708,6 @@ def calculate_objective(
     return B_inv, objectives, w, C_b
 
 
-# NOTE- there could be more than one minimum
-# also this does not prevent cycling among extreme points
-# currently unused
-def get_non_negative_min(
-    M,
-    y_k: np.ndarray[typing.Any, np.dtype[np.float32]],
-) -> typing.Tuple[float, int]:
-    """Get the index of the leaving variable in the basis var list.
-    This needs to get translated into the actual index of the variable."""
-    n = M.shape[0]
-    minimum: float = 1e9
-    minimum_index: int = 0
-    for i in range(0, n):
-        if y_k[i, 0] > 0:
-            if M[i, 0] < minimum:
-                minimum = M[i, 0]
-                minimum_index = i
-
-    return minimum, minimum_index
-
-
 def get_leaving_var_lexi(
     M,
     B_inv,
@@ -952,7 +922,7 @@ def solve_normal_simplex(
             # TODO- print the direction along which the value is unbounded
             print("unbounded optimal value.")
             return None
-        print(y_k)
+        # print(y_k)
         r, B = determine_leaving(
             k, A, B, B_inv, b, y_k, basis_col_list, basis_is_identity, verbose
         )
@@ -964,9 +934,9 @@ def solve_normal_simplex(
                 leaving_col = i
         basis_col_list[leaving_col] = k
 
-        if verbose:
-            print("B:\n", B)
-        print("-------------------------------------------------")
+        # if verbose:
+        #     print("B:\n", B)
+        # print("-------------------------------------------------")
         if round_count > argparser.args.iter:
             print("too many iterations.")
             return None
@@ -1022,7 +992,7 @@ def dsimplex_gui(argparser: Argparser) -> typing.Optional[float]:
 def dsimplex_gui_loop(
     argparser: Argparser, equs: typing.List[Equation]
 ) -> typing.Optional[float]:
-    """The entry point for the g ui"""
+    """The entry point for the gui"""
     lp_problem = LP_Problem(argparser)
 
     lp_problem.equs = equs
@@ -1036,6 +1006,14 @@ def dsimplex_gui_loop(
         lp_problem,
         argparser,
     )
+
+
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
 
 
 def parse_equ_csv_loop(
@@ -1055,7 +1033,7 @@ def parse_equ_csv_loop(
                 result.append(dsimplex_gui_loop(argparser, equ_list))
                 equ_list = []
                 continue
-            if not any(row_element.isnumeric() for row_element in row):
+            if not any(isfloat(row_element) for row_element in row):
                 result.append(dsimplex_gui_loop(argparser, equ_list))
                 equ_list = []
                 names = row
