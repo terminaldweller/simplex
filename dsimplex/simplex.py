@@ -56,10 +56,12 @@ class LP_Problem:  # pylint: disable=too-many-instance-attributes
 def prettify_equs(equ: Equation) -> str:
     """A custom jinja filter that pretty-prints the equations."""
     equ_stringified: str = ""
-    # print(equ)
     for k, v in equ.vars_mults.items():
-        equ_stringified += k + "*" + repr(v) + " "
-    equ_stringified += equ.operand + " " + repr(equ.rhs)
+        equ_stringified += k + "*" + repr(v) + " + "
+    if equ.operand != "":
+        equ_stringified += equ.operand + " " + repr(equ.rhs)
+    else:
+        equ_stringified = equ_stringified[:-2]
     return equ_stringified
 
 
