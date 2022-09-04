@@ -115,6 +115,8 @@ class DsimplexGui:
             row=0, column=6, sticky="ew", padx=5, pady=6
         )
 
+        self.result_box_label = ttk.Label(text="result(s)")
+        self.result_box_label.pack()
         self.text = tk.scrolledtext.ScrolledText()
         self.text.configure(bg="#262626", fg="#808080")
         self.text.pack(fill="both", expand=True)

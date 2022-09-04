@@ -88,6 +88,7 @@ def write_template_head(path: str, lp_problem: LP_Problem):
         loader=jinja2.FileSystemLoader(os.path.join(".", "dsimplex")),
     )
     environment.filters["prettify_equs"] = prettify_equs
+    environment.filters["tabularize_matrix"] = tabularize_matrix
     template = environment.get_template(os.path.join("result_head.jinja2"))
     temp_head = template.render({"lp_problem": lp_problem})
     with open(path, encoding="utf-8", mode="a+") as out_file:
