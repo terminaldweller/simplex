@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dsimplex"
-version = "0.1.11"
+version = "0.2.0"
 description = "A simplex implementation in python"
 authors = ["terminaldweller <thabogre@gmail.com>"]
 license = "GPL3"
@@ -19,8 +19,8 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-dsimplex = ".dsimplex:main"
-dsimplex-gui = ".dsimplex-gui:main:"
+dsimplex = "dsimplex:main"
+dsimplex-gui = "dsimplex-gui:main:"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
@@ -28,8 +28,9 @@ numpy = "^1.22.4"
 scipy = "^1.8.1"
 Jinja2 = "^3.1.2"
 Markdown = "^3.4.1"
-tk-html-widgets = "^0.4.0"
 ttkthemes = "^3.2.2"
+tk-html-widgets = "^0.4.0"
+Pillow = "^9.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.3"

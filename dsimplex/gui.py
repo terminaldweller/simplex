@@ -2,6 +2,7 @@
 """dsimplex gui"""
 
 import os
+import sys
 import tkinter as tk
 import tkinter.filedialog
 from tkinter import ttk
@@ -18,6 +19,9 @@ class DsimplexGui:
     """The GUI class."""
 
     def __init__(self) -> None:
+        sys.stderr = open("log.err", "a+", encoding="utf-8")
+        sys.stdout = open("log.out", "a+", encoding="utf-8")
+
         self.csv_file_path: str = ""
         self.argparse: Argparser = Argparser()
         self.mock_cli: str = ""
@@ -111,7 +115,7 @@ class DsimplexGui:
             row=0, column=6, sticky="ew", padx=5, pady=6
         )
 
-        self.text = tk.Text()
+        self.text = tk.scrolledtext.ScrolledText()
         self.text.configure(bg="#262626", fg="#808080")
         self.text.pack(fill="both", expand=True)
         self.text.configure(state="normal")
@@ -120,8 +124,11 @@ class DsimplexGui:
         self.frame_left.pack()
 
         # FIXME- maybe a label isnt the right widget for an error console.
-        self.console_label = ttk.Label()
+        self.console_label = ttk.Label(text="console")
         self.console_label.pack()
+        self.console_text = tk.scrolledtext.ScrolledText(height="7")
+        self.console_text.configure(bg="#262626", fg="#808080")
+        self.console_text.pack(fill="x")
 
     def show_report_cb(self) -> None:
         """Callback for the show report button. displays the report."""
@@ -206,7 +213,8 @@ class DsimplexGui:
         except Exception as e:
             # we really don't care what the problem is. we just don't
             # want to exit the gui
-            print(e)
+            # print(e)
+            self.console_text.insert(tk.END, repr(e))
         finally:
             self.mock_cli = ""
 

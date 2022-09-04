@@ -163,7 +163,9 @@ x1,x2,x3,x4,x5,x6,x7,cond,rhs
 ```
 
 ## How to Get
-You can get it from [pypi](https://pypi.org/project/dsimplex/):<br/>
+You first need to install tkinter.</br>
+You can get tkinter from you distro's repo.</br>
+Then you can get dsimplex from [pypi](https://pypi.org/project/dsimplex/):<br/>
 ```sh
 pip3 install dsimplex
 ```

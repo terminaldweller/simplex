@@ -56,7 +56,7 @@ class LP_Problem:  # pylint: disable=too-many-instance-attributes
 def prettify_equs(equ: Equation) -> str:
     """A custom jinja filter that pretty-prints the equations."""
     equ_stringified: str = ""
-    print(equ)
+    # print(equ)
     for k, v in equ.vars_mults.items():
         equ_stringified += k + "*" + repr(v) + " "
     equ_stringified += equ.operand + " " + repr(equ.rhs)
@@ -279,7 +279,7 @@ def parse_equ_csv(csv_file: str, delim: str) -> typing.List[Equation]:
         reader = csv.reader(csvfile, delimiter=delim, quotechar="|")
         names = next(reader)
         for row in reader:
-            print(row)
+            # print(row)
             if row[-1] != "":
                 equ.rhs = float(row[-1])
             if row[-2] != "":
@@ -491,13 +491,13 @@ def construct_lp_problem(lp_problem: LP_Problem, argparser: Argparser) -> None:
 
     has_identity, col_list = find_identity(A)
     if has_identity and col_list is not None:
-        print("col_list:", col_list)
+        # print("col_list:", col_list)
         for _, v in col_list.items():
             col_list_list.append(v)
     else:
         # big M
         m_zero: float = calculate_big_m_zero(A, b, C)
-        print("m_zero:", m_zero)
+        # print("m_zero:", m_zero)
         ones_column_list = get_ones(A)
         build_identity(
             A,
@@ -689,9 +689,9 @@ def calculate_objective(
         B_inv = B
     else:
         B_inv = invert_matrix(B)
-    print("B_inv:\n", B_inv)
+    # print("B_inv:\n", B_inv)
 
-    print("basic_var_column_list: ", basic_var_column_list)
+    # print("basic_var_column_list: ", basic_var_column_list)
     for i, v in enumerate(basic_var_column_list):
         C_b[0, i] = C[0, v]
 
@@ -792,7 +792,7 @@ def determine_leaving(
         print("b_bar:\n", b_bar)
 
     b_bar_div_y = np.divide(b_bar[:, :], y_k)
-    print("b_bar_div_y:\n", b_bar_div_y)
+    # print("b_bar_div_y:\n", b_bar_div_y)
     _, r = get_leaving_var_lexi(b_bar_div_y, B_inv, A, y_k)
     rr = basis_col_list[r]
     if verbose:
@@ -852,12 +852,12 @@ def calculate_optimal(
     optim: float = 0.0
 
     x_b = np.dot(B_inv, b)
-    print("x_b:\n", x_b)
-    print("optimal solution point:")
+    # print("x_b:\n", x_b)
+    # print("optimal solution point:")
     for basis in basis_col_list:
         print(var_sorted_list[basis])
     Z = np.dot(C_b, x_b)
-    print("Z:\n", Z)
+    # print("Z:\n", Z)
 
     optim = Z[0, 0]
 
@@ -916,7 +916,7 @@ def solve_normal_simplex(
                 return opt
 
         y_k = np.dot(B_inv, A[:, k : k + 1])
-        print("y_k:\n", y_k)
+        # print("y_k:\n", y_k)
         if np.all(np.less_equal(y_k, 0)):
             # we are done
             # TODO- print the direction along which the value is unbounded
