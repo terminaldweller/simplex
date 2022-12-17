@@ -6,9 +6,11 @@ import sys
 import tkinter as tk
 import tkinter.filedialog
 from tkinter import ttk
+from tkinter.scrolledtext import ScrolledText
 
 import markdown
-import tk_html_widgets
+# import tk_html_widgets
+import tkhtmlview
 import ttkthemes
 
 from .args import Argparser
@@ -148,7 +150,8 @@ class DsimplexGui:
         with open(report_path, encoding="utf-8") as report_file:
             html_help_content = report_file.read()
 
-            report_label = tk_html_widgets.HTMLScrolledText(report_window)
+            # report_label = tk_html_widgets.HTMLScrolledText(report_window)
+            report_label = tkhtmlview.HTMLLabel(report_window)
             report_label.set_html(html_help_content)
 
             report_label.pack(fil="both", expand=True)
@@ -168,9 +171,7 @@ class DsimplexGui:
             md_help_content = help_file.read()
             html_help_content = markdown.markdown(md_help_content)
 
-            # def_font = tk.font.nametofont("TkDefaultFont")
-            # def_font.config(size=24)
-            help_label = tk_html_widgets.HTMLScrolledText(help_window)
+            help_label = tkhtmlview.HTMLLabel(help_window)
             help_label.configure(fg="#808080", bg="#262626")
             help_label.set_html(html_help_content)
 
