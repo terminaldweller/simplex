@@ -1,20 +1,99 @@
 #!/usr/bin/env python3
 """dsimplex gui"""
 
+import csv
 import os
 import sys
+import tempfile
 import tkinter as tk
 import tkinter.filedialog
+import tksheet
 from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 
 import markdown
+import pandas as pd
 # import tk_html_widgets
 import tkhtmlview
 import ttkthemes
 
 from .args import Argparser
 from .simplex import dsimplex_gui, parse_equ_csv_loop
+
+
+class NewLPWindow:
+    """New LP window class"""
+    def __init__(self,master) -> None:
+        self.window = tk.Toplevel()
+        self.window.wm_title("new LP")
+        self.window.configure(bg="#444444")
+        self.window.rowconfigure(0, minsize=600, weight=1)
+        self.window.columnconfigure(0, minsize=400, weight=1)
+        self.csv = []
+        self.excel_file_path = ""
+        self.master = master
+        b_frame = ttk.Frame(self.window, relief=tk.GROOVE, borderwidth=3)
+        b_frame.pack(side= tk.BOTTOM)
+        u_frame = ttk.Frame(self.window, relief=tk.GROOVE, borderwidth=3)
+        u_frame.pack(side= tk.TOP, expand=True,fill="both")
+        u_frame.rowconfigure(0, weight=1)
+        u_frame.columnconfigure(0, weight=1)
+
+        self.sheet = tksheet.Sheet(
+            u_frame,
+            width= 640,
+            height= 640,
+            expand_sheet_if_paste_too_big = True,
+            data = [["" for c in range(50)] for r in range(500)],
+            theme = "dark"
+        )
+        self.sheet.enable_bindings()
+
+        button_open = ttk.Button(
+            text="open",
+            width=15,
+            master=b_frame,
+            command=self.open_button_action,
+        )
+        button_ok = ttk.Button(
+            text="ok",
+            width=15,
+            master=b_frame,
+            command=self.ok_button_action,
+        )
+        button_cancel = ttk.Button(
+            text="cancel",
+            width=15,
+            master=b_frame,
+            command=self.window.destroy
+        )
+
+        # self.sheet.pack(fill="both", expand=True)
+        self.sheet.grid(row=0, column=0, sticky= "ew", padx=5, pady=5)
+        button_open.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+        button_ok.grid(row=1, column=2, sticky="ew", padx=5, pady=5)
+        button_cancel.grid(row=1, column=3, sticky="ew", padx=5, pady=5)
+
+    def ok_button_action(self)-> None:
+        self.window.destroy()
+        print(self.sheet.get_sheet_data(return_copy = False,get_header = False, get_index = False))
+        self.csv=self.sheet.get_sheet_data(return_copy = True,get_header = False, get_index = False)
+        with tempfile.NamedTemporaryFile(mode="w",delete=False) as temp_file:
+            for line in self.csv:
+                temp_file.write(",".join(line))
+                temp_file.write(os.linesep)
+            print(temp_file.name)
+            self.master.csv_file_path = temp_file.name
+
+    def open_button_action(self)->None:
+        lp_file = tk.filedialog.askopenfile(mode="r")
+        data: typing.List = []
+        # TODO - support excel
+        if lp_file:
+            reader = csv.reader(lp_file)
+            for line in reader:
+                data.append(line)
+            self.sheet.set_sheet_data(data=data)
 
 
 class DsimplexGui:
@@ -107,6 +186,13 @@ class DsimplexGui:
             command=self.show_report_cb,
         )
 
+        self.button_new_LP = ttk.Button(
+            text="New LP",
+            width=15,
+            master=self.frame_left,
+            command=self.open_new_LP_window
+        )
+
         self.button_browse.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
         self.button_run.grid(row=0, column=4, sticky="ew", padx=5)
         self.button_html_report_dir.grid(
@@ -116,6 +202,7 @@ class DsimplexGui:
         self.button_show_report.grid(
             row=0, column=6, sticky="ew", padx=5, pady=6
         )
+        self.button_new_LP.grid(row=0,column=7, sticky="ew", padx=5,pady=7)
 
         self.result_box_label = ttk.Label(text="result(s)")
         self.result_box_label.pack()
@@ -151,7 +238,8 @@ class DsimplexGui:
             html_help_content = report_file.read()
 
             # report_label = tk_html_widgets.HTMLScrolledText(report_window)
-            report_label = tkhtmlview.HTMLLabel(report_window)
+            report_label = tkhtmlview.HTMLScrolledText(report_window)
+            report_label.configure(fg="#808080", bg="#6c6c6c")
             report_label.set_html(html_help_content)
 
             report_label.pack(fil="both", expand=True)
@@ -171,8 +259,8 @@ class DsimplexGui:
             md_help_content = help_file.read()
             html_help_content = markdown.markdown(md_help_content)
 
-            help_label = tkhtmlview.HTMLLabel(help_window)
-            help_label.configure(fg="#808080", bg="#262626")
+            help_label = tkhtmlview.HTMLScrolledText(help_window)
+            help_label.configure(fg="#808080", bg="#6c6c6c")
             help_label.set_html(html_help_content)
 
             help_label.pack(fil="both", expand=True)
@@ -182,6 +270,13 @@ class DsimplexGui:
         html_dir = tk.filedialog.askdirectory()
         if html_dir:
             self.html_report_dir = os.path.abspath(html_dir)
+
+    def open_new_LP_window(self) -> None:
+        """Opens up a new window to input a new LP."""
+        new_lp_window = NewLPWindow(self)
+
+    def open_new_LP_window_ok_button_action(window)-> None:
+        window.destroy()
 
     def run_button_cb(self) -> None:
         """Callback for the run button."""
